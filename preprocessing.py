@@ -10,20 +10,22 @@ import sys
 PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
 sc = SparkContext("local[*]",'pyspark tuitorial')
-sqlcontext = SQLContext(sc)
+sqlContext = SQLContext(sc)
 
 def fetch_url(x,path):
-	fetch_url = path+"/"+x+".bytes"
-	return fetch_url;
-	#text = requests.get(fetch_url).text
-
-	#entries = text.split(os.linesep)
-	#entries = [i.strip().replace("'","") for i in  entries]
-	#return text;
+	class_label = x[1][1]
+	url = x[1][0]
+	fetch_url = path+"/"+url+".bytes"
+	text = requests.get(fetch_url).text
+	entries = text.split(os.linesep)
+	entries = [(i.strip().replace("'",""),class_label) for i in  entries]
+	return entries;
 
 def open_row(x):
-	entries = x.split(os.linesep)
-	entries = [i.strip().replace("'","") for i in  entries]
+	entries = [i for i in x[0].split(' ')]
+	entries.append(x[1])
+	return entries
+	
 
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
@@ -39,22 +41,22 @@ parser.add_argument('--test_y', type=str,
 args = parser.parse_args()
 print(args)
 
-rdd_train_x = sc.textFile(args.train_x)
+rdd_train_x = sc.textFile(args.train_x).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train_y = sc.textFile(args.train_y).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_x = sc.textFile(args.test_x)
-rdd_test_y = sc.textFile(args.test_y)
-rdd_train_x= rdd_train_x.map(lambda l:fetch_url(l,PATH)).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_x = rdd_test_x.map(lambda l:fetch_url(l,PATH))
+rdd_test_x = sc.textFile(args.test_x).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
-print(rdd_train.take(10))
-sys.exit(-1);
+rdd_test = rdd_test_x.join(rdd_test_y)
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:open_row(l))
+rdd_test = rdd_test.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:open_row(l))
 
 
+print(rdd_train.take(1))
 
-df_train_x = sqlContext.createDataFrame(rdd_train, ['headers','byte_1','byte_2','byte_3','byte_4','byte_5','byte_6','byte_7','byte_8','byte_9','byte_10','byte_11','byte_12','byte_13','byte_14','byte_15','byte_16'])
-df_test_x = sqlContext.createDataFrame(rdd_test_x, ['headers','byte_1','byte_2','byte_3','byte_4','byte_5','byte_6','byte_7','byte_8','byte_9','byte_10','byte_11','byte_12','byte_13','byte_14','byte_15','byte_16'])
-df_train_y = sqlcontext.createDataFrame()
-print(rdd_train.take(10))
+df_train = sqlContext.createDataFrame(rdd_train)
+df_test = sqlContext.createDataFrame(rdd_test)
+print(df_train.show())
+print(df_test.show())
 
 
 
