@@ -1,6 +1,6 @@
 from pyspark.sql import SQLContext
 
-
+from pyspark.ml.feature import *
 from pyspark import SparkContext
 import argparse
 
@@ -27,6 +27,11 @@ def open_row(x):
 	return entries
 	
 
+def clean(x):
+	temp = x[0].split(' ')[1:]
+	text = ' '.join(temp)
+	return (text,x[1])
+
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
 parser.add_argument('--train_x', type=str,
@@ -47,8 +52,8 @@ rdd_test_x = sc.textFile(args.test_x).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:open_row(l))
-rdd_test = rdd_test.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:open_row(l))
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:clean(l));
+rdd_test = rdd_test.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:clean(l))
 
 
 print(rdd_train.take(1))
@@ -57,6 +62,8 @@ df_train = sqlContext.createDataFrame(rdd_train)
 df_test = sqlContext.createDataFrame(rdd_test)
 print(df_train.show())
 print(df_test.show())
+
+
 
 
 
