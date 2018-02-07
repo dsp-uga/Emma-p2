@@ -83,6 +83,8 @@ parser.add_argument('--test_x', type=str,
                     help='testing x set')
 parser.add_argument('--test_y', type=str,
                     help='testing y set')
+parser.add_argument('--path', type=str,
+                    help='path to folder')
 
 args = parser.parse_args()
 print(args)
@@ -93,11 +95,11 @@ rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:clean(l)).take(30);
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30);
 
 rdd_train = sc.parallelize(rdd_train)
 
-temp = rdd_test.flatMap(lambda l :fetch_url(l,PATH)).map(lambda l:clean(l)).take(30)
+temp = rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30)
 rdd_test = sc.parallelize(temp)
 
 #original dataframe
@@ -106,6 +108,7 @@ rdd_test = sc.parallelize(temp)
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
+df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
 df_train_orignal.printSchema()
@@ -134,17 +137,5 @@ df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array"
 
 df_train_vectorizer.show();
 df_test_vectorizer.show();
-
-
-
-
-
-
-
-
-
-
-
-
 
 
