@@ -23,8 +23,8 @@ def merge_col(*x):
 
 
 
-def count_vectorizer_processor(df,colname):
-	cv_train = CountVectorizer(inputCol=colname, outputCol="features", vocabSize=3, minDF=2.0)
+def count_vectorizer_processor(df,input_colname="merge_text_array",outputCol_name="vectors_countvectorizer"):
+	cv_train = CountVectorizer(inputCol=input_colname, outputCol=outputCol_name, vocabSize=3, minDF=2.0)
 	model = cv_train.fit(df)
 	df = model.transform(df)
 	return df
@@ -32,8 +32,8 @@ def count_vectorizer_processor(df,colname):
 
 
 
-def word2ved_processor(df):
-	wv_train =  Word2Vec(inputCol="text",outputCol="vector").setVectorSize(20)
+def word2ved_processor(df,input_colname="text",outputCol="vectors_word2vec"):
+	wv_train =  Word2Vec(inputCol=input_colname,outputCol=outputCol).setVectorSize(20)
 	model = wv_train.fit(df)
 	df = model.transform(df)
 	return df
@@ -95,10 +95,10 @@ rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30)
 
 
-rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
+rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30)
 
 
 #original dataframe
@@ -131,8 +131,8 @@ df_train_ngram.show()
 df_test_ngram.show();
 
 #count vectorizer + ngram
-df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
-df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
+df_train_vectorizer = count_vectorizer_processor(df_train_ngram)
+df_test_vectorizer = count_vectorizer_processor(df_test_ngram)
 
 df_train_vectorizer.show();
 df_test_vectorizer.show();
