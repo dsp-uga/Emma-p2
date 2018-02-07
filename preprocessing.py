@@ -95,12 +95,11 @@ rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30);
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
 
-rdd_train = sc.parallelize(rdd_train)
 
-temp = rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l)).take(30)
-rdd_test = sc.parallelize(temp)
+rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
+
 
 #original dataframe
 
