@@ -10,6 +10,9 @@ import requests
 import os;
 from pyspark.sql.types  import *
 import sys
+
+#credits : https://spark.apache.org/docs/2.2.0/mllib-feature-extraction.html
+
 PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
 sc = SparkContext("local[*]",'pyspark tuitorial')
@@ -23,7 +26,7 @@ def merge_col(*x):
 
 
 def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
-	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=30)
+	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=300)
 	tf = hashingTF.transform(df)
 	idf = IDF(inputCol="raw_features", outputCol=outputCol)
 	idfModel = idf.fit(tf)
@@ -31,8 +34,8 @@ def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
 	return df;
 
 
-def count_vectorizer_processor(df,colname):
-	cv_train = CountVectorizer(inputCol=colname, outputCol="features", vocabSize=3, minDF=2.0)
+def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="features"):
+	cv_train = CountVectorizer(inputCol=inputCol, outputCol=outputCol, vocabSize=3, minDF=2.0)
 	model = cv_train.fit(df)
 	df = model.transform(df)
 	return df
@@ -145,8 +148,8 @@ df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array"
 df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
 df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
 
-
-df_train_vectorizer.show();
-df_test_vectorizer.show();
-df_tfidf_train.show()
+df_tfidf_test.printSchema();
+#df_train_vectorizer.show();
+#df_test_vectorizer.show();
+#df_tfidf_train.show()
 df_tfidf_test.show()
