@@ -110,10 +110,13 @@ rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
 rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
 #rdd_train = sc.parallelize(rdd_train)
-
+rdd_train.count();
+print("Download complete");
 rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
 #rdd_test = sc.parallelize(rdd_test)
+rdd_test.count();
 
+print("Download complete")
 #original dataframe
 
 
