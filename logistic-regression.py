@@ -132,22 +132,22 @@ df_test_orignal.cache()
 
 ## word2vec code
 
-df_train_word2vec = word2ved_processor(df_train_orignal)
-df_test_word2vec = word2ved_processor(df_test_orignal)
-df_train_word2vec.show()
-df_train_word2vec.show()
+#df_train_word2vec = word2ved_processor(df_train_orignal)
+#df_test_word2vec = word2ved_processor(df_test_orignal)
+#df_train_word2vec.show()
+#df_train_word2vec.show()
 
 
 ##ngram code 
-df_train_ngram = ngram_processor(df_train_orignal,n_count=3);
-df_test_ngram = ngram_processor(df_test_orignal,n_count=3)
+#df_train_ngram = ngram_processor(df_train_orignal,n_count=3);
+#df_test_ngram = ngram_processor(df_test_orignal,n_count=3)
 
-df_train_ngram.show()
-df_test_ngram.show();
+#df_train_ngram.show()
+#df_test_ngram.show();
 
 #count vectorizer + ngram
-df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
-df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
+#df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
+#df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
 df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
 df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
