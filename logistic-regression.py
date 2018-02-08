@@ -137,13 +137,13 @@ print("Test Zeros" + str(rdd_test.count()));
 
 
 print("Download complete")
-#original dataframe
+
 
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-#df_train_original = df_train_original.repartition(10)
-#df_test_original = df_test_original.repartition(10) 
+df_train_original = df_train_original.repartition(30)
+df_test_original = df_test_original.repartition(30) 
 
 #df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
@@ -189,20 +189,33 @@ print("processing complete");
 
 
 # Split data approximately into training (60%) and test (40%)
-training_0=df_tfidf_train.map(lambda l: one_vs_all(l,0));
-training_1 =df_tfidf_train.map(lambda l: one_vs_all(l,1));
-training_2=df_tfidf_train.map(lambda l : one_vs_all(l,2));
-training_3=df_tfidf_train.map(lambda l : one_vs_all(l,3));
+training_0,testing_0=df_tfidf_train.map(lambda l: one_vs_all(l,0)).randomSplit([0.7,0.3]);
+training_1,testing_1=df_tfidf_train.map(lambda l: one_vs_all(l,1)).randomSplit([0.7,0.3]);
+training_2,testing_2=df_tfidf_train.map(lambda l : one_vs_all(l,2)).randomSplit([0.7,0.3]);
+training_3,testing_3=df_tfidf_train.map(lambda l : one_vs_all(l,3)).randomSplit([0.7,0.3]);
+training_4,testing_4=df_tfidf_train.map(lambda l : one_vs_all(l,4)).randomSplit([0.7,0.3]);
 
-model_0 = LogisticRegressionWithSGD.train(training_0, iterations=100)
-model_1 = LogisticRegressionWithSGD.train(training_1, iterations=100)
-model_2= LogisticRegressionWithSGD.train(training_2, iterations=100)
-model_3= LogisticRegressionWithSGD.train(training_3, iterations=100)
+model_0 = LogisticRegressionWithSGD.train(training_0, iterations=200)
+model_1 = LogisticRegressionWithSGD.train(training_1, iterations=200)
+model_2= LogisticRegressionWithSGD.train(training_2, iterations=200)
+model_3= LogisticRegressionWithSGD.train(training_3, iterations=200)
+model_4= LogisticRegressionWithSGD.train(training_4, iterations=200)
 value_0 = prediction_and_label(model_0,training_0)
 value_1 = prediction_and_label(model_1,training_1)
 value_2  = prediction_and_label(model_2,training_2)
 value_3  = prediction_and_label(model_3,training_3)
-print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3))
+value_4  = prediction_and_label(model_4,training_4)
+
+value_01= prediction_and_label(model_0,testing_0)
+value_11 = prediction_and_label(model_1,testing_1)
+value_21  = prediction_and_label(model_2,testing_2)
+value_31  = prediction_and_label(model_3,testing_3)
+value_41  = prediction_and_label(model_4,testing_4)
+
+
+print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4))
+print(str(value_01)+":" + str(value_11) + ":" + str(value_21) +";"+  str(value_31) + ";"+ str(value_41))
+
 sys.exit(-1)
 
 
