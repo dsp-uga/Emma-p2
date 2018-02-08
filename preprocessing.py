@@ -17,7 +17,7 @@ from pyspark.sql.types  import *
 import sys
 PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
-sc = SparkContext("local[*]",'pyspark tuitorial')
+sc = SparkContext()#"local[*]",'pyspark tuitorial'
 sqlContext = SQLContext(sc)
 
 def merge_col(*x):
@@ -89,29 +89,29 @@ def clean(x):
 
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
-parser.add_argument('--train_x', type=str,
+parser.add_argument('-a','--train_x', type=str,
                     help='training x set')
-parser.add_argument( '--train_y' ,help='training y set')
-parser.add_argument('--test_x', type=str,
+parser.add_argument( '-b','--train_y' ,help='training y set')
+parser.add_argument('-c','--test_x', type=str,
                     help='testing x set')
-parser.add_argument('--test_y', type=str,
+parser.add_argument('-d','--test_y', type=str,
                     help='testing y set')
-parser.add_argument('--path', type=str,
+parser.add_argument('-e','--path', type=str,
                     help='path to folder')
 
-args = parser.parse_args()
-print(args)
-rdd_train_x = sc.textFile(args.train_x).zipWithIndex().map(lambda l:(l[1],l[0]))
-rdd_train_y = sc.textFile(args.train_y).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_x = sc.textFile(args.test_x).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_y = sc.textFile(args.test_y).zipWithIndex().map(lambda l:(l[1],l[0]));
+args = vars(parser.parse_args())
+#print(args)
+rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
+rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1],l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
 #rdd_train = sc.parallelize(rdd_train)
 
-rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(l))
+rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
 #rdd_test = sc.parallelize(rdd_test)
 
 #original dataframe
@@ -119,7 +119,7 @@ rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
+#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
 df_train_orignal.printSchema()
@@ -168,5 +168,5 @@ model = NaiveBayes.train(training, 1.0)
 # Make prediction and test accuracy.
 predictionAndLabel = test.map(lambda p: (model.predict(p.features), p.label))
 accuracy = 1.0 * predictionAndLabel.filter(lambda pl: pl[0] == pl[1]).count() / test.count()
-print(predictionAndLabel.map(lambda x:x[0]).collect())
+#print(predictionAndLabel.map(lambda x:x[0]).collect())
 print('model accuracy {}'.format(accuracy))
