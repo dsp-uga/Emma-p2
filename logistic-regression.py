@@ -2,6 +2,8 @@ from pyspark.sql import SQLContext
 from pyspark.mllib.classification import *
 from pyspark.mllib.util import MLUtils
 
+from pyspark.ml.classification import LogisticRegression
+
 from pyspark.ml.feature import *
 from pyspark import SparkContext
 from pyspark.sql.functions import udf,col,split
@@ -195,6 +197,10 @@ training_2,testing_2=df_tfidf_train.map(lambda l : one_vs_all(l,2)).randomSplit(
 training_3,testing_3=df_tfidf_train.map(lambda l : one_vs_all(l,3)).randomSplit([0.7,0.3]);
 training_4,testing_4=df_tfidf_train.map(lambda l : one_vs_all(l,4)).randomSplit([0.7,0.3]);
 
+
+
+
+
 model_0 = LogisticRegressionWithSGD.train(training_0, iterations=200)
 model_1 = LogisticRegressionWithSGD.train(training_1, iterations=200)
 model_2= LogisticRegressionWithSGD.train(training_2, iterations=200)
@@ -211,6 +217,8 @@ value_11 = prediction_and_label(model_1,testing_1)
 value_21  = prediction_and_label(model_2,testing_2)
 value_31  = prediction_and_label(model_3,testing_3)
 value_41  = prediction_and_label(model_4,testing_4)
+
+
 
 
 print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4))
