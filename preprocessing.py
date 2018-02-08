@@ -5,14 +5,14 @@ from pyspark import SparkContext
 from pyspark.sql.functions import udf,col,split
 import argparse
 
+from pyspark.mllib.regression import LabeledPoint
+from pyspark.mllib.linalg import SparseVector
+
 
 import requests
 import os;
 from pyspark.sql.types  import *
 import sys
-
-#credits : https://spark.apache.org/docs/2.2.0/mllib-feature-extraction.html
-
 PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
 sc = SparkContext("local[*]",'pyspark tuitorial')
@@ -25,13 +25,14 @@ def merge_col(*x):
 	return temp
 
 
+
 def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
 	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=300)
 	tf = hashingTF.transform(df)
-	idf = IDF(inputCol="raw_features", outputCol=outputCol)
+	idf = IDF(inputCol="raw_features", outputCol=outputCol,minDocFreq=2)
 	idfModel = idf.fit(tf)
 	df = idfModel.transform(tf)
-	return df;
+	return df.drop(col("raw_features"));
 
 
 def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="features"):
@@ -61,8 +62,6 @@ def ngram_processor(df,n_count=3):
 	df = df.withColumn("merge_text",merge_udf("text","text_ngram_2","text_ngram_3"))
 	df = df.withColumn("merge_text_array",split(col("merge_text"), ",")).drop(col("merge_text"))
 
-
-
 	return df
 
 
@@ -84,6 +83,7 @@ def open_row(x):
 def clean(x):
 	temp = x[0].split(' ')[1:]
 	return (temp,x[1])
+
 
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
@@ -113,7 +113,6 @@ rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args.path)).map(lambda l:clean(
 rdd_test = sc.parallelize(rdd_test)
 
 #original dataframe
-
 
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
@@ -147,9 +146,11 @@ df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array"
 
 df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
 df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
+df_tfidf_test = df_tfidf_test.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
+df_tfidf_train= df_tfidf_train.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
 
-df_tfidf_test.printSchema();
+#print(df_tfidf_test.take(20)[-1][-1])
 #df_train_vectorizer.show();
 #df_test_vectorizer.show();
 #df_tfidf_train.show()
-df_tfidf_test.show()
+#df_tfidf_test.show()
