@@ -1,5 +1,5 @@
 from pyspark.sql import SQLContext
-from pyspark.mllib.classification import NaiveBayes, NaiveBayesModel
+from pyspark.mllib.classification import *
 from pyspark.mllib.util import MLUtils
 
 from pyspark.ml.feature import *
@@ -15,7 +15,7 @@ import requests
 import os;
 from pyspark.sql.types  import *
 import sys
-PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
+#PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
 sc = SparkContext()#"local[*]",'pyspark tuitorial'
 sqlContext = SQLContext(sc)
@@ -29,9 +29,9 @@ def merge_col(*x):
 
 
 def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
-	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=300)
+	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=400)
 	tf = hashingTF.transform(df)
-	idf = IDF(inputCol="raw_features", outputCol=outputCol,minDocFreq=2)
+	idf = IDF(inputCol="raw_features", outputCol=outputCol,minDocFreq=3)
 	idfModel = idf.fit(tf)
 	df = idfModel.transform(tf)
 	return df.drop(col("raw_features"));
@@ -83,9 +83,17 @@ def open_row(x):
 	
 
 def clean(x):
+	count = 0
 	temp = x[0].split(' ')[1:]
+	for i in range(0,len(temp)):
+		if temp[i] == '00' or temp[i] == '??':
+			count = count + 1
+	if count == len(temp):
+		return None
+	
+	
+	
 	return (temp,x[1])
-
 
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
@@ -102,23 +110,29 @@ parser.add_argument('-e','--path', type=str,
 args = vars(parser.parse_args())
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1]-1,l[0]));
 rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1]-1,l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None)
 #rdd_train = sc.parallelize(rdd_train)
-
-rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l))
+rdd_train.count();
+print("Download complete");
+rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l: l!=None)
 #rdd_test = sc.parallelize(rdd_test)
+rdd_test.count();
 
+print("Download complete")
 #original dataframe
 
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
+#df_train_original = df_train_original.repartition(3000)
+#df_test_original = df_test_original.repartition(3000) 
+
 #df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
@@ -129,27 +143,31 @@ df_test_orignal.cache()
 
 ## word2vec code
 
-df_train_word2vec = word2ved_processor(df_train_orignal)
-df_test_word2vec = word2ved_processor(df_test_orignal)
-df_train_word2vec.show()
-df_train_word2vec.show()
+#df_train_word2vec = word2ved_processor(df_train_orignal)
+#df_test_word2vec = word2ved_processor(df_test_orignal)
+#df_train_word2vec.show()
+#df_train_word2vec.show()
 
 
 ##ngram code 
-df_train_ngram = ngram_processor(df_train_orignal,n_count=3);
-df_test_ngram = ngram_processor(df_test_orignal,n_count=3)
+#df_train_ngram = ngram_processor(df_train_orignal,n_count=3);
+#df_test_ngram = ngram_processor(df_test_orignal,n_count=3)
 
-df_train_ngram.show()
-df_test_ngram.show();
+#df_train_ngram.show()
+#df_test_ngram.show();
 
 #count vectorizer + ngram
-df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
-df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
+#df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
+#df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
 df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
+print("now processing tf-idf");
+df_tfidf_train.count();
 df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
+df_tfidf_test.count();
 df_tfidf_test = df_tfidf_test.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
 df_tfidf_train= df_tfidf_train.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
+print("processing complete");
 
 #print(df_tfidf_test.take(20)[-1][-1])
 #df_train_vectorizer.show();
@@ -163,10 +181,17 @@ training=df_tfidf_train
 test=df_tfidf_test
 
 # Train a naive Bayes model.
-model = NaiveBayes.train(training, 1.0)
+model = NaiveBayes.train(training, 0.8)
 
 # Make prediction and test accuracy.
 predictionAndLabel = test.map(lambda p: (model.predict(p.features), p.label))
 accuracy = 1.0 * predictionAndLabel.filter(lambda pl: pl[0] == pl[1]).count() / test.count()
 #print(predictionAndLabel.map(lambda x:x[0]).collect())
 print('model accuracy {}'.format(accuracy))
+
+
+#print(df_tfidf_test.take(20)[-1][-1])
+#df_train_vectorizer.show();
+#df_test_vectorizer.show();
+#df_tfidf_train.show()
+#df_tfidf_test.show()
