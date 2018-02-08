@@ -122,6 +122,9 @@ print("Download complete")
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
+df_train_original = df_train_original.repartition(3000)
+df_test_original = df_test_original.repartition(3000) 
+
 #df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
@@ -150,9 +153,13 @@ df_test_orignal.cache()
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
 df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
+print("now processing tf-idf");
+df_tfidf_train.count();
 df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
+df_tfidf_test.count();
 df_tfidf_test = df_tfidf_test.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
 df_tfidf_train= df_tfidf_train.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
+print("processing complete");
 
 #print(df_tfidf_test.take(20)[-1][-1])
 #df_train_vectorizer.show();
