@@ -8,7 +8,7 @@ from pyspark.ml.feature import *
 from pyspark import SparkContext,SparkConf
 from pyspark.sql.functions import udf,col,split
 import argparse
-
+import pyspark
 from pyspark.ml.linalg import Vectors, VectorUDT
 
 
@@ -22,10 +22,10 @@ PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 #"local[*]",'pyspark tuitorial'
 conf = SparkConf()
 conf = conf.setMaster("local[*]")
-conf =conf.set("spark.driver.memory", "58g")
+conf =conf.set("spark.driver.memory", "45G")
 #conf.set("spark.driver.cores", 4)
 
-sc = SparkContext('local', 'Team Emma',conf=conf)
+sc = SparkContext('local[*]','Team Emma',conf=conf)
 
 sqlContext = SQLContext(sc)
 
@@ -138,12 +138,12 @@ rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
 #rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
-rdd_train = rdd_train_x.join(rdd_train_y)
+rdd_train = rdd_train_x.join(rdd_train_y).randomSplit([0.4,0.6])[0];
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
 rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None)
+rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 #rdd_train = sc.parallelize(rdd_train)
-print("Training Zeros" + str(rdd_train.count()));
 print("Download complete");
 #rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l: l!=None)
 #rdd_test = sc.parallelize(rdd_test)
@@ -156,15 +156,14 @@ print("Download complete")
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-df_train_original = df_train_original.repartition(30000)
-#df_test_original = df_test_original.repartition(30000) 
+df_train_original = df_train_original.repartition(10000)
+	#df_test_original = df_test_original.repartition(30000) 
 
-#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
+	#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
 df_train_original.printSchema()
 
-df_train_original.cache()
 #df_test_original.cache()
 
 ## word2vec code
@@ -186,9 +185,8 @@ df_train_original.cache()
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector");
+df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector")
 print("now processing tf-idf");
-df_tfidf_train.count();
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 #df_tfidf_test.count();
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
