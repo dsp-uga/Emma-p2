@@ -29,8 +29,30 @@ sc = SparkContext('local[*]','Team Emma',conf=conf)
 
 sqlContext = SQLContext(sc)
 
+current_class = 0
 
 #.set("spark.executor.memory", "4g")
+
+def build_labels(df_tfidf_train):
+	current_class = 0;
+	df_tfidf_train = df_tfidf_train.withColumn("zero",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 1
+	df_tfidf_train = df_tfidf_train.withColumn("one",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 2
+	df_tfidf_train = df_tfidf_train.withColumn("two",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 3
+	df_tfidf_train = df_tfidf_train.withColumn("three",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 4
+	df_tfidf_train = df_tfidf_train.withColumn("four",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 5
+	df_tfidf_train = df_tfidf_train.withColumn("five",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 6
+	df_tfidf_train = df_tfidf_train.withColumn("six",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 7
+	df_tfidf_train = df_tfidf_train.withColumn("seven",one_vs_all_udf(df_tfidf_train.class_label))
+	current_class = 8
+	df_tfidf_train = df_tfidf_train.withColumn("eight",one_vs_all_udf(df_tfidf_train.class_label))
+	return df_tfidf_train
 
 def merge_col(*x):
 	temp = list();
@@ -39,17 +61,17 @@ def merge_col(*x):
 	return temp
 
 
-def prediction_and_label(model,dataset):
+def prediction_and_label(model,dataset,label):
 	predictions = model.transform(dataset)
 	predictions.printSchema()
 	evaluator = MulticlassClassificationEvaluator(
-    labelCol="label", predictionCol="prediction", metricName="accuracy")
+    labelCol=label, predictionCol="prediction", metricName="accuracy")
 	accuracy = evaluator.evaluate(predictions)
 	return (accuracy);
 
 
 def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
-	hashingTF = HashingTF(inputCol=inputCol, outputCol=outputCol, numFeatures=400)
+	hashingTF = HashingTF(inputCol=inputCol, outputCol=outputCol, numFeatures=100)
 	df = hashingTF.transform(df)
 	#idf = IDF(inputCol="raw_features", outputCol=outputCol,minDocFreq=3)
 	#idfModel = idf.fit(tf)
@@ -115,11 +137,14 @@ def clean(x):
 	return (temp,x[1])
 
 
-def one_vs_all(x,current_class):
-		if x[0] !=current_class:
-			return(Vectors.dense(x[1]),0)
+def one_vs_all(x):
+		if x[0] ==current_class:
+			return float(1)
 		else:
-			return (Vectors.dense(x[1],1))
+			return float(0)
+
+one_vs_all_udf = udf(one_vs_all,FloatType())
+		
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
 parser.add_argument('-a','--train_x', type=str,
@@ -156,7 +181,7 @@ print("Download complete")
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-df_train_original = df_train_original.repartition(10000)
+#df_train_original = df_train_original.repartition(10000)
 	#df_test_original = df_test_original.repartition(30000) 
 
 	#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
@@ -187,11 +212,13 @@ df_train_original.printSchema()
 
 df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector")
 print("now processing tf-idf");
+
+df_tfidf_train = build_labels(df_tfidf_train)
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
-#df_tfidf_test.count();
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
-df_tfidf_train= df_tfidf_train.rdd.map(lambda l:[l[1],l[-1].toArray()])
-print("processing complete");
+#df_tfidf_train= df_tfidf_train.rdd.map(lambda l:[l[1],l[-1].toArray()]).repartition(10000)
+#df_tfidf_train = df_tfidf_train.randomSplit([0.05,05,0.99])[0:]
+#print("processing complete");
 
 #print(df_tfidf_test.take(20)[-1][-1])
 #df_train_vectorizer.show();
@@ -201,73 +228,48 @@ print("processing complete");
 
 
 # Split data approximately into training (60%) and test (40%)"""
-training_0,testing_0=df_tfidf_train.map(lambda l: one_vs_all(l,0)).randomSplit([0.7,0.3]);
-training_0 = sqlContext.createDataFrame(training_0,schema=["features","label"])
-testing_0 = sqlContext.createDataFrame(testing_0,schema=["features","label"])
 
-training_1,testing_1=df_tfidf_train.map(lambda l: one_vs_all(l,1)).randomSplit([0.7,0.3]);
-training_1 = sqlContext.createDataFrame(training_1,schema=["features","label"])
-testing_1 = sqlContext.createDataFrame(testing_1,schema=["features","label"])
+training_0,testing_0=df_tfidf_train.randomSplit([0.6,0.4])
+training_1,testing_1=df_tfidf_train.randomSplit([0.6,0.4])
 
-training_2,testing_2=df_tfidf_train.map(lambda l : one_vs_all(l,2)).randomSplit([0.7,0.3]);
-training_2 = sqlContext.createDataFrame(training_2,schema=["features","label"])
-testing_2 = sqlContext.createDataFrame(testing_2,schema=["features","label"])
+training_2,testing_2=df_tfidf_train.randomSplit([0.6,0.4])
 
-training_3,testing_3=df_tfidf_train.map(lambda l : one_vs_all(l,3)).randomSplit([0.7,0.3]);
-training_3 = sqlContext.createDataFrame(training_3,schema=["features","label"])
-testing_3 = sqlContext.createDataFrame(testing_3,schema=["features","label"])
+training_3,testing_3=df_tfidf_train.randomSplit([0.6,0.4])
 
-training_4,testing_4=df_tfidf_train.map(lambda l : one_vs_all(l,4)).randomSplit([0.7,0.3]);
-training_4 = sqlContext.createDataFrame(training_4,schema=["features","label"])
-testing_4 = sqlContext.createDataFrame(testing_4,schema=["features","label"])
+training_4,testing_4=df_tfidf_train.randomSplit([0.6,0.4])
 
-training_5,testing_5=df_tfidf_train.map(lambda l : one_vs_all(l,5)).randomSplit([0.7,0.3]);
-training_5 = sqlContext.createDataFrame(training_5,schema=["features","label"])
-testing_5 = sqlContext.createDataFrame(testing_5,schema=["features","label"])
+training_5,testing_5=df_tfidf_train.randomSplit([0.6,0.4])
 
-training_6,testing_6=df_tfidf_train.map(lambda l : one_vs_all(l,6)).randomSplit([0.7,0.3]);
-training_6 = sqlContext.createDataFrame(training_6,schema=["features","label"])
-testing_6 = sqlContext.createDataFrame(testing_6,schema=["features","label"])
-training_7,testing_7=df_tfidf_train.map(lambda l : one_vs_all(l,7)).randomSplit([0.7,0.3]);
-training_7 = sqlContext.createDataFrame(training_7,schema=["features","label"])
-testing_7 = sqlContext.createDataFrame(testing_7,schema=["features","label"])
+training_6,testing_6=df_tfidf_train.randomSplit([0.6,0.4])
+training_7,testing_7=df_tfidf_train.randomSplit([0.6,0.4])
 
 
+model_0 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="zero", featuresCol="tfidf_vector").fit(training_0)
+model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="one", featuresCol="tfidf_vector").fit(training_1)
+model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="two", featuresCol="tfidf_vector").fit(training_2)
+model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="three", featuresCol="tfidf_vector").fit(training_3)
+model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="four", featuresCol="tfidf_vector").fit(training_4)
+model_5= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="five", featuresCol="tfidf_vector").fit(training_5)
+model_6= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="six", featuresCol="tfidf_vector").fit(training_6)
+model_7= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="seven", featuresCol="tfidf_vector").fit(training_7)
 
+value_0 = prediction_and_label(model_0,training_0,"zero")
+value_1 = prediction_and_label(model_1,training_1,"one")
+value_2  = prediction_and_label(model_2,training_2,"two")
+value_3  = prediction_and_label(model_3,training_3,"three")
+value_4  = prediction_and_label(model_4,training_4,"four")
+value_5  = prediction_and_label(model_5,training_5,"five")
+value_6  = prediction_and_label(model_6,training_6,"six")
+value_7  = prediction_and_label(model_7,training_7,"seven")
 
-
-
-
-
-
-
-
-model_0 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_0)
-model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_1)
-model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_2)
-model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_3)
-model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_4)
-model_5= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_5)
-model_6= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_6)
-model_7= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_7)
-
-value_0 = prediction_and_label(model_0,training_0)
-value_1 = prediction_and_label(model_1,training_1)
-value_2  = prediction_and_label(model_2,training_2)
-value_3  = prediction_and_label(model_3,training_3)
-value_4  = prediction_and_label(model_4,training_4)
-value_5  = prediction_and_label(model_5,training_5)
-value_6  = prediction_and_label(model_6,training_6)
-value_7  = prediction_and_label(model_7,training_7)
-
-value_01= prediction_and_label(model_0,testing_0)
-value_11 = prediction_and_label(model_1,testing_1)
-value_21  = prediction_and_label(model_2,testing_2)
-value_31  = prediction_and_label(model_3,testing_3)
-value_41  = prediction_and_label(model_4,testing_4)
-value_51  = prediction_and_label(model_5,training_5)
-value_61  = prediction_and_label(model_6,training_6)
-value_71  = prediction_and_label(model_7,training_7)
+value_01= prediction_and_label(model_0,testing_0,"zero")
+value_11 = prediction_and_label(model_1,testing_1,"one")
+value_21  = prediction_and_label(model_2,testing_2,"two")
+value_31  = prediction_and_label(model_3,testing_3,"three")
+value_41  = prediction_and_label(model_4,testing_4,"four")
+value_51  = prediction_and_label(model_5,training_5,"five")
+value_61  = prediction_and_label(model_6,training_6,"six")
+value_71  = prediction_and_label(model_7,training_7,"seven")
 
 
 print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4) +  ";"+ str(value_5) + ";"+ str(value_6) + ";"+ str(value_7))
