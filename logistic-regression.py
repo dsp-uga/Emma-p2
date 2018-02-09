@@ -1,16 +1,16 @@
 from pyspark.sql import SQLContext
-from pyspark.mllib.classification import *
-from pyspark.mllib.util import MLUtils
+
 
 from pyspark.ml.classification import LogisticRegression
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 from pyspark.ml.feature import *
 from pyspark import SparkContext
 from pyspark.sql.functions import udf,col,split
 import argparse
 
-from pyspark.mllib.regression import LabeledPoint
-from pyspark.mllib.linalg import SparseVector
+from pyspark.ml.linalg import Vectors, VectorUDT
+
 
 
 import requests
@@ -29,11 +29,13 @@ def merge_col(*x):
 	return temp
 
 
-def prediction_and_label(model,training):
-	predictionAndLabel = training.map(lambda p: (model.predict(p.features), p.label))
-	accuracy = 1.0 * predictionAndLabel.filter(lambda pl: pl[0] == pl[1]).count() / training.count()
-	#print(predictionAndLabel.map(lambda x:x[0]).collect())
-	return accuracy
+def prediction_and_label(model,dataset):
+	predictions = model.transform(dataset)
+	predictions.printSchema()
+	evaluator = MulticlassClassificationEvaluator(
+    labelCol="label", predictionCol="prediction", metricName="accuracy")
+	accuracy = evaluator.evaluate(predictions)
+	return (accuracy);
 
 
 def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
@@ -104,10 +106,10 @@ def clean(x):
 
 
 def one_vs_all(x,current_class):
-		if x.label !=current_class:
-			return LabeledPoint(0,x.features)
+		if x[0] !=current_class:
+			return(Vectors.dense(x[1]),0)
 		else:
-			return LabeledPoint(1,x.features)
+			return (Vectors.dense(x[1],1))
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
 parser.add_argument('-a','--train_x', type=str,
@@ -179,8 +181,8 @@ print("now processing tf-idf");
 df_tfidf_train.count();
 df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 df_tfidf_test.count();
-df_tfidf_test = df_tfidf_test.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
-df_tfidf_train= df_tfidf_train.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
+df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
+df_tfidf_train= df_tfidf_train.rdd.map(lambda l:[l[1],l[-1].toArray()])
 print("processing complete");
 
 #print(df_tfidf_test.take(20)[-1][-1])
@@ -190,22 +192,37 @@ print("processing complete");
 #df_tfidf_test.show()
 
 
-# Split data approximately into training (60%) and test (40%)
+# Split data approximately into training (60%) and test (40%)"""
 training_0,testing_0=df_tfidf_train.map(lambda l: one_vs_all(l,0)).randomSplit([0.7,0.3]);
+training_0 = sqlContext.createDataFrame(training_0,schema=["features","label"])
+testing_0 = sqlContext.createDataFrame(testing_0,schema=["features","label"])
+
 training_1,testing_1=df_tfidf_train.map(lambda l: one_vs_all(l,1)).randomSplit([0.7,0.3]);
+training_1 = sqlContext.createDataFrame(training_1,schema=["features","label"])
+testing_1 = sqlContext.createDataFrame(testing_1,schema=["features","label"])
 training_2,testing_2=df_tfidf_train.map(lambda l : one_vs_all(l,2)).randomSplit([0.7,0.3]);
+training_2 = sqlContext.createDataFrame(training_2,schema=["features","label"])
+testing_2 = sqlContext.createDataFrame(testing_2,schema=["features","label"])
 training_3,testing_3=df_tfidf_train.map(lambda l : one_vs_all(l,3)).randomSplit([0.7,0.3]);
+training_3 = sqlContext.createDataFrame(training_3,schema=["features","label"])
+testing_3 = sqlContext.createDataFrame(testing_3,schema=["features","label"])
 training_4,testing_4=df_tfidf_train.map(lambda l : one_vs_all(l,4)).randomSplit([0.7,0.3]);
+training_4 = sqlContext.createDataFrame(training_4,schema=["features","label"])
+testing_4 = sqlContext.createDataFrame(testing_4,schema=["features","label"])
 
 
 
 
 
-model_0 = LogisticRegressionWithSGD.train(training_0, iterations=200)
-model_1 = LogisticRegressionWithSGD.train(training_1, iterations=200)
-model_2= LogisticRegressionWithSGD.train(training_2, iterations=200)
-model_3= LogisticRegressionWithSGD.train(training_3, iterations=200)
-model_4= LogisticRegressionWithSGD.train(training_4, iterations=200)
+
+
+
+
+model_0 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_0)
+model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_1)
+model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_2)
+model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_3)
+model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_4)
 value_0 = prediction_and_label(model_0,training_0)
 value_1 = prediction_and_label(model_1,training_1)
 value_2  = prediction_and_label(model_2,training_2)
