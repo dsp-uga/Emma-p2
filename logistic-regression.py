@@ -5,7 +5,7 @@ from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 from pyspark.ml.feature import *
-from pyspark import SparkContext
+from pyspark import SparkContext,SparkConf
 from pyspark.sql.functions import udf,col,split
 import argparse
 
@@ -19,8 +19,18 @@ from pyspark.sql.types  import *
 import sys
 PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
-sc = SparkContext()#"local[*]",'pyspark tuitorial'
+#"local[*]",'pyspark tuitorial'
+conf = SparkConf()
+conf = conf.setMaster("local[*]")
+conf =conf.set("spark.driver.memory", "3g")
+#conf.set("spark.driver.cores", 4)
+
+sc = SparkContext('local', 'test',conf=conf)
+
 sqlContext = SQLContext(sc)
+
+
+#.set("spark.executor.memory", "4g")
 
 def merge_col(*x):
 	temp = list();
@@ -146,8 +156,8 @@ print("Download complete")
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-df_train_original = df_train_original.repartition(30)
-df_test_original = df_test_original.repartition(30) 
+df_train_original = df_train_original.repartition(30000)
+df_test_original = df_test_original.repartition(30000) 
 
 #df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
@@ -200,15 +210,31 @@ testing_0 = sqlContext.createDataFrame(testing_0,schema=["features","label"])
 training_1,testing_1=df_tfidf_train.map(lambda l: one_vs_all(l,1)).randomSplit([0.7,0.3]);
 training_1 = sqlContext.createDataFrame(training_1,schema=["features","label"])
 testing_1 = sqlContext.createDataFrame(testing_1,schema=["features","label"])
+
 training_2,testing_2=df_tfidf_train.map(lambda l : one_vs_all(l,2)).randomSplit([0.7,0.3]);
 training_2 = sqlContext.createDataFrame(training_2,schema=["features","label"])
 testing_2 = sqlContext.createDataFrame(testing_2,schema=["features","label"])
+
 training_3,testing_3=df_tfidf_train.map(lambda l : one_vs_all(l,3)).randomSplit([0.7,0.3]);
 training_3 = sqlContext.createDataFrame(training_3,schema=["features","label"])
 testing_3 = sqlContext.createDataFrame(testing_3,schema=["features","label"])
+
 training_4,testing_4=df_tfidf_train.map(lambda l : one_vs_all(l,4)).randomSplit([0.7,0.3]);
 training_4 = sqlContext.createDataFrame(training_4,schema=["features","label"])
 testing_4 = sqlContext.createDataFrame(testing_4,schema=["features","label"])
+
+training_5,testing_5=df_tfidf_train.map(lambda l : one_vs_all(l,5)).randomSplit([0.7,0.3]);
+training_5 = sqlContext.createDataFrame(training_5,schema=["features","label"])
+testing_5 = sqlContext.createDataFrame(testing_5,schema=["features","label"])
+
+training_6,testing_6=df_tfidf_train.map(lambda l : one_vs_all(l,6)).randomSplit([0.7,0.3]);
+training_6 = sqlContext.createDataFrame(training_6,schema=["features","label"])
+testing_6 = sqlContext.createDataFrame(testing_6,schema=["features","label"])
+training_7,testing_7=df_tfidf_train.map(lambda l : one_vs_all(l,7)).randomSplit([0.7,0.3]);
+training_7 = sqlContext.createDataFrame(training_7,schema=["features","label"])
+testing_7 = sqlContext.createDataFrame(testing_7,schema=["features","label"])
+
+
 
 
 
@@ -223,40 +249,28 @@ model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,lab
 model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_2)
 model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_3)
 model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_4)
+model_5= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_5)
+model_6= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_6)
+model_7= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="label", featuresCol="features").fit(training_7)
+
 value_0 = prediction_and_label(model_0,training_0)
 value_1 = prediction_and_label(model_1,training_1)
 value_2  = prediction_and_label(model_2,training_2)
 value_3  = prediction_and_label(model_3,training_3)
 value_4  = prediction_and_label(model_4,training_4)
+value_5  = prediction_and_label(model_5,training_5)
+value_6  = prediction_and_label(model_6,training_6)
+value_7  = prediction_and_label(model_7,training_7)
 
 value_01= prediction_and_label(model_0,testing_0)
 value_11 = prediction_and_label(model_1,testing_1)
 value_21  = prediction_and_label(model_2,testing_2)
 value_31  = prediction_and_label(model_3,testing_3)
 value_41  = prediction_and_label(model_4,testing_4)
+value_51  = prediction_and_label(model_5,training_5)
+value_61  = prediction_and_label(model_6,training_6)
+value_71  = prediction_and_label(model_7,training_7)
 
 
-
-
-print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4))
-print(str(value_01)+":" + str(value_11) + ":" + str(value_21) +";"+  str(value_31) + ";"+ str(value_41))
-
-sys.exit(-1)
-
-
-
-# Train a naive Bayes model.
-#model = NaiveBayes.train(training, 0.7)
-
-# Make prediction and test accuracy.
-predictionAndLabel = training.map(lambda p: (model.predict(p.features), p.label))
-accuracy = 1.0 * predictionAndLabel.filter(lambda pl: pl[0] == pl[1]).count() / training.count()
-#print(predictionAndLabel.map(lambda x:x[0]).collect())
-print('model accuracy {}'.format(accuracy))
-
-
-#print(df_tfidf_test.take(20)[-1][-1])
-#df_train_vectorizer.show();
-#df_test_vectorizer.show();
-#df_tfidf_train.show()
-#df_tfidf_test.show()
+print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4) +  ";"+ str(value_5) + ";"+ str(value_6) + ";"+ str(value_7))
+print(str(value_01)+":" + str(value_11) + ":" + str(value_21) +";"+  str(value_31) + ";"+ str(value_41)  + ";"+ str(value_51) + ";"+ str(value_61) + ";"+ str(value_71))
