@@ -324,7 +324,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-df_tfidf_train = tfidf_processor(df_train_original,"text","features")
+df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector")
 print("now processing tf-idf");
 
 df_tfidf_train = build_labels(df_tfidf_train)
@@ -347,7 +347,15 @@ splits = [6.0,9.0,10.0][0]
 
 
 model_list = intialize_model()
-training , testing = df_tfidf_train.randomSplit([0.7,0.3])
+scaler = MinMaxScaler(inputCol="tfidf_vector", outputCol="features")
+scalerModel = scaler.fit(df_tfidf_train)
+scaledData = scalerModel.transform(df_tfidf_train)
+
+training , testing = scaledData.randomSplit([0.7,0.3])
+
+
+training = training.repartition(5000)
+testing = testing.repartition(50000)
 
 for i in range(0,20):
 	model_list = boosting(training,model_list)
