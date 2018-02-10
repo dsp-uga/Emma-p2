@@ -1,7 +1,4 @@
 from pyspark.sql import SQLContext
-
-
-
 from pyspark.ml.classification import *
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
@@ -12,19 +9,19 @@ from pyspark.sql.functions import udf,col,split,lit
 import argparse
 import pyspark
 from pyspark.ml.linalg import Vectors, VectorUDT
-
-
-
 import requests
 import os;
 from pyspark.sql.types  import *
 import sys
-PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
+
+#PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
 
 #"local[*]",'pyspark tuitorial'
+
+#Spark configuration in
 conf = SparkConf()
 conf = conf.setMaster("local[*]")
-conf =conf.set("spark.driver.memory", "3G")
+conf =conf.set("spark.driver.memory", "40G")
 #conf.set("spark.driver.cores", 4)
 
 sc = SparkContext('local[*]','Team Emma',conf=conf)
@@ -106,55 +103,36 @@ waste = 1 - split_train + split_test
 
 
 def boosting(df_tfidf_train,model):
-		if df_tfidf_train.rdd.isEmpty(): #fixing for empty dataset
-			return -1,model;
 		accuracy = [0 for i in range(0,8)]
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[0] = model[0].fit(training)
-		accuracy[0] =   prediction_and_label(model[0],testing,"zero")
 
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[1]  = model[1].fit(training)
-		accuracy[1] = prediction_and_label(model[1],testing,"one")
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[2]  = model[2].fit(training)
-		accuracy[2] = prediction_and_label(model[2],testing,"two")
 
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[3] = model[3].fit(training)
-		accuracy[3] = prediction_and_label(model[3],testing,"three")
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[4] = model[4].fit(training)
-		accuracy[4] =  prediction_and_label(model[4],testing,"four")
 		
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[5]  = model[5].fit(training)
-		accuracy[5] =  prediction_and_label(model[5],testing,"five")
-
+	
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[6] = model[6].fit(training)
-		accuracy[6] = prediction_and_label(model[6],testing,"six")
-		print(accuracy[6])
 
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[7]  = model[7].fit(training)
-		accuracy[7] = prediction_and_label(model[7],testing,"seven")
-		print(accuracy[7])
+		
 		model = update_model(model)
-		return accuracy,model
+		return model
 
 
 
@@ -187,11 +165,19 @@ def merge_col(*x):
 	return temp
 
 
-def prediction_and_label(model,dataset,label):
+def prediction_and_label(model,dataset):
 	prediction= model.transform(dataset)
-	dataset.show()
-	prediction.show()
-	return 1.0
+	predictionAndLabels = prediction.map(lambda lp: (float(model.predict(lp.features)), lp.label))
+
+	metrics = MulticlassMetrics(predictionAndLabels)
+	# Overall statistics
+	precision = metrics.precision()
+	recall = metrics.recall()
+	f1Score = metrics.fMeasure()
+	print("Summary Stats")
+	print("Precision = %s" % precision)
+	print("Recall = %s" % recall)
+	print("F1 Score = %s" % f1Score)
 
 
 
@@ -288,7 +274,7 @@ parser.add_argument('-e','--path', type=str,
 args = vars(parser.parse_args())
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
+rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
 #rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y).randomSplit([0.4,0.6])[0];
@@ -338,7 +324,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-df_tfidf_train = tfidf_processor(df_train_original,"text","features").repartition(5000)
+df_tfidf_train = tfidf_processor(df_train_original,"text","features")
 print("now processing tf-idf");
 
 df_tfidf_train = build_labels(df_tfidf_train)
@@ -361,16 +347,19 @@ splits = [6.0,9.0,10.0][0]
 
 
 model_list = intialize_model()
+training , testing = df_tfidf_train.randomSplit([0.7,0.3])
 
 for i in range(0,20):
-	accuracy,model_list = boosting(df_tfidf_train,model_list)
-print(accuracy)
+	model_list = boosting(training,model_list)
+
+prediction_and_label(model_list[0],testing)
+prediction_and_label(model_list[1],testing)
+prediction_and_label(model_list[2],testing)
+prediction_and_label(model_list[3],testing)
+prediction_and_label(model_list[4],testing)
+prediction_and_label(model_list[5],testing)
+prediction_and_label(model_list[6],testing)
+prediction_and_label(model_list[7],testing)
 
 
 
-
-
-
-
-print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4) +  ";"+ str(value_5) + ";"+ str(value_6) + ";"+ str(value_7))
-print(str(value_01)+":" + str(value_11) + ":" + str(value_21) +";"+  str(value_31) + ";"+ str(value_41)  + ";"+ str(value_51) + ";"+ str(value_61) + ";"+ str(value_71))
