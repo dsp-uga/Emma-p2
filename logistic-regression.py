@@ -1,6 +1,7 @@
 from pyspark.sql import SQLContext
 
 
+
 from pyspark.ml.classification import LogisticRegression
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
@@ -33,6 +34,91 @@ current_class = 0
 
 #.set("spark.executor.memory", "4g")
 
+
+
+def intialize_model():
+
+	model = list();
+
+	model_0 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="zero", featuresCol="tfidf_vector")
+	model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="one", featuresCol="tfidf_vector")
+	model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="two", featuresCol="tfidf_vector")
+	model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="three", featuresCol="tfidf_vector")
+	model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="four", featuresCol="tfidf_vector")
+	model_5= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="five", featuresCol="tfidf_vector")
+	model_6= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="six", featuresCol="tfidf_vector")
+	model_7= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="seven", featuresCol="tfidf_vector")
+
+	model.append(model_0)
+	model.append(model_1)
+	model.append(model_2)
+	model.append(model_3)
+	model.append(model_4)
+	model.append(model_5)
+	model.append(model_6)
+	model.append(model_7)
+
+
+	return model
+
+
+
+
+split_train = 0.2
+split_test = 0.2
+waste = 1 - split_train + split_test
+
+def boosting(df_tfidf_train,model,iteration):
+	accuracy = [0 for i in range(0,8)]
+
+	for i in range(0,iteration):
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[0].fit(training)
+		print(temp.summary.objectiveHistory)
+		accuracy[0] =   prediction_and_label(temp,testing,"zero")
+
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[1].fit(training)
+		accuracy[1] = prediction_and_label(temp,testing,"one")
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[2].fit(training)
+		print(temp.summary.objectiveHistory)
+		accuracy[2] = prediction_and_label(temp,testing,"two")
+
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp = model[3].fit(training)
+		print(temp.summary.objectiveHistory)
+		accuracy[3] = prediction_and_label(temp,testing,"three")
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[4].fit(training)
+		print(temp.summary.objectiveHistory)
+		accuracy[4] =  prediction_and_label(temp,testing,"four")
+		
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[5].fit(training)
+		print(temp.summary.objectiveHistory)
+		accuracy[5] =  prediction_and_label(temp,testing,"five")
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp = model[6].fit(training)
+		accuracy[6] = prediction_and_label(temp,testing,"six")
+		print(temp.summary.objectiveHistory)
+		print(accuracy[6])
+
+		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		temp  = model[7].fit(training)
+		accuracy[7] = prediction_and_label(temp,testing,"seven")
+		print(temp.summary.objectiveHistory)
+		print(accuracy[7])
+
+	return accuracy
+
+	
 def build_labels(df_tfidf_train):
 	current_class = 0;
 	df_tfidf_train = df_tfidf_train.withColumn("zero",one_vs_all_udf(df_tfidf_train.class_label))
@@ -63,7 +149,6 @@ def merge_col(*x):
 
 def prediction_and_label(model,dataset,label):
 	predictions = model.transform(dataset)
-	predictions.printSchema()
 	evaluator = MulticlassClassificationEvaluator(
     labelCol=label, predictionCol="prediction", metricName="accuracy")
 	accuracy = evaluator.evaluate(predictions)
@@ -187,7 +272,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 	#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
-df_train_original.printSchema()
+#df_train_original.printSchema()
 
 #df_test_original.cache()
 
@@ -229,47 +314,17 @@ df_tfidf_train = build_labels(df_tfidf_train)
 
 # Split data approximately into training (60%) and test (40%)"""
 
-training_0,testing_0=df_tfidf_train.randomSplit([0.6,0.4])
-training_1,testing_1=df_tfidf_train.randomSplit([0.6,0.4])
-
-training_2,testing_2=df_tfidf_train.randomSplit([0.6,0.4])
-
-training_3,testing_3=df_tfidf_train.randomSplit([0.6,0.4])
-
-training_4,testing_4=df_tfidf_train.randomSplit([0.6,0.4])
-
-training_5,testing_5=df_tfidf_train.randomSplit([0.6,0.4])
-
-training_6,testing_6=df_tfidf_train.randomSplit([0.6,0.4])
-training_7,testing_7=df_tfidf_train.randomSplit([0.6,0.4])
+splits = [6.0,9.0,10.0][0]
 
 
-model_0 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="zero", featuresCol="tfidf_vector").fit(training_0)
-model_1 = LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="one", featuresCol="tfidf_vector").fit(training_1)
-model_2= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="two", featuresCol="tfidf_vector").fit(training_2)
-model_3= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="three", featuresCol="tfidf_vector").fit(training_3)
-model_4= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="four", featuresCol="tfidf_vector").fit(training_4)
-model_5= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="five", featuresCol="tfidf_vector").fit(training_5)
-model_6= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="six", featuresCol="tfidf_vector").fit(training_6)
-model_7= LogisticRegression(maxIter=1000, regParam=0.3, elasticNetParam=0.8,labelCol="seven", featuresCol="tfidf_vector").fit(training_7)
+model_list = intialize_model()
+accuracy = boosting(df_tfidf_train,model_list,10)
+print(accuracy)
 
-value_0 = prediction_and_label(model_0,training_0,"zero")
-value_1 = prediction_and_label(model_1,training_1,"one")
-value_2  = prediction_and_label(model_2,training_2,"two")
-value_3  = prediction_and_label(model_3,training_3,"three")
-value_4  = prediction_and_label(model_4,training_4,"four")
-value_5  = prediction_and_label(model_5,training_5,"five")
-value_6  = prediction_and_label(model_6,training_6,"six")
-value_7  = prediction_and_label(model_7,training_7,"seven")
 
-value_01= prediction_and_label(model_0,testing_0,"zero")
-value_11 = prediction_and_label(model_1,testing_1,"one")
-value_21  = prediction_and_label(model_2,testing_2,"two")
-value_31  = prediction_and_label(model_3,testing_3,"three")
-value_41  = prediction_and_label(model_4,testing_4,"four")
-value_51  = prediction_and_label(model_5,training_5,"five")
-value_61  = prediction_and_label(model_6,training_6,"six")
-value_71  = prediction_and_label(model_7,training_7,"seven")
+
+
+
 
 
 print(str(value_0)+":" + str(value_1) + ":" + str(value_2) +";"+  str(value_3) + ";"+ str(value_4) +  ";"+ str(value_5) + ";"+ str(value_6) + ";"+ str(value_7))
