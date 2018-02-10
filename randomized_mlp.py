@@ -1,3 +1,4 @@
+
 from pyspark.sql import SQLContext
 from pyspark.ml.classification import *
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
@@ -21,7 +22,7 @@ import sys
 #Spark configuration in
 conf = SparkConf()
 conf = conf.setMaster("local[*]")
-conf =conf.set("spark.driver.memory", "40G")
+conf =conf.set("spark.driver.memory", "45G")
 #conf.set("spark.driver.cores", 4)
 
 sc = SparkContext('local[*]','Team Emma',conf=conf)
@@ -220,12 +221,13 @@ def ngram_processor(df,n_count=3):
 
 
 def fetch_url(x,path):
+	key = x[0]
 	class_label = x[1][1]
 	url = x[1][0]
 	fetch_url = path+"/"+url+".bytes"
 	text = requests.get(fetch_url).text
 	entries = text.split(os.linesep)
-	entries = [(i.strip().replace("'",""),class_label) for i in  entries]
+	entries = [(i.strip().replace("'",""),class_label,key) for i in  entries]
 	return entries;
 
 def open_row(x):
@@ -235,7 +237,10 @@ def open_row(x):
 	
 
 def clean(x):
+	label = x[1]
+	key = x[2]
 	count = 0
+	class_label = x[2]
 	temp = x[0].split(' ')[1:]
 	for i in range(0,len(temp)):
 		if temp[i] == '00' or temp[i] == '??':
@@ -245,7 +250,7 @@ def clean(x):
 	
 	
 	
-	return (temp,x[1])
+	return (temp,label,key)
 
 
 def one_vs_all(x,y):
@@ -280,7 +285,11 @@ rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[
 rdd_train = rdd_train_x.join(rdd_train_y).randomSplit([0.4,0.6])[0];
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
+print(rdd_train.take(2))
+
+
 rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None)
+
 rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 #rdd_train = sc.parallelize(rdd_train)
 print("Download complete");
@@ -293,7 +302,8 @@ print("Download complete")
 
 
 
-df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
+df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
+
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
 #df_train_original = df_train_original.repartition(10000)
 	#df_test_original = df_test_original.repartition(30000) 
@@ -302,7 +312,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 
 
 #df_train_original.printSchema()
-
+ 
 #df_test_original.cache()
 
 ## word2vec code
@@ -326,8 +336,9 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 
 df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector")
 print("now processing tf-idf");
-
+print(df_tfidf_train.take(2))
 df_tfidf_train = build_labels(df_tfidf_train)
+
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
 #df_tfidf_train= df_tfidf_train.rdd.map(lambda l:[l[1],l[-1].toArray()]).repartition(10000)
@@ -346,13 +357,7 @@ df_tfidf_train = build_labels(df_tfidf_train)
 splits = [6.0,9.0,10.0][0]
 
 
-model_list = intialize_model()
-scaler = MinMaxScaler(inputCol="tfidf_vector", outputCol="features")
-scalerModel = scaler.fit(df_tfidf_train)
-scaledData = scalerModel.transform(df_tfidf_train)
-
-training , testing = scaledData.randomSplit([0.7,0.3])
-
+training , testing = df_tfidf_train.randomSplit([0.7,0.3])
 
 training = training.repartition(5000)
 testing = testing.repartition(50000)
@@ -368,6 +373,3 @@ prediction_and_label(model_list[4],testing)
 prediction_and_label(model_list[5],testing)
 prediction_and_label(model_list[6],testing)
 prediction_and_label(model_list[7],testing)
-
-
-
