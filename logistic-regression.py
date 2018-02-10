@@ -275,7 +275,7 @@ parser.add_argument('-e','--path', type=str,
 args = vars(parser.parse_args())
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
+rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1],l[0]));
 #rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y).randomSplit([0.4,0.6])[0];
