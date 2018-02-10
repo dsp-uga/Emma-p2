@@ -285,7 +285,6 @@ rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[
 rdd_train = rdd_train_x.join(rdd_train_y).randomSplit([0.4,0.6])[0];
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
-print(rdd_train.take(2))
 
 
 rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None)
@@ -336,7 +335,6 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 
 df_tfidf_train = tfidf_processor(df_train_original,"text","tfidf_vector")
 print("now processing tf-idf");
-print(df_tfidf_train.take(2))
 df_tfidf_train = build_labels(df_tfidf_train)
 
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
@@ -361,7 +359,7 @@ training , testing = df_tfidf_train.randomSplit([0.7,0.3])
 
 training = training.repartition(5000)
 testing = testing.repartition(50000)
-
+model_list = intialize_model()
 for i in range(0,20):
 	model_list = boosting(training,model_list)
 
