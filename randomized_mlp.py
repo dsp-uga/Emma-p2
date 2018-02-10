@@ -100,6 +100,7 @@ def update_model(old_model):
 
 split_train = 0.05
 split_test = 0.05
+limit = 100
 waste = 1 - split_train + split_test
 
 
@@ -109,38 +110,46 @@ def boosting(df_tfidf_train,model):
 			return -1,model;
 		accuracy = [0 for i in range(0,8)]
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[0] = model[0].fit(training)
 		accuracy[0] =   prediction_and_label(model[0],testing,"zero")
 
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[1]  = model[1].fit(training)
 		accuracy[1] = prediction_and_label(model[1],testing,"one")
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[2]  = model[2].fit(training)
 		accuracy[2] = prediction_and_label(model[2],testing,"two")
 
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[3] = model[3].fit(training)
 		accuracy[3] = prediction_and_label(model[3],testing,"three")
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[4] = model[4].fit(training)
 		accuracy[4] =  prediction_and_label(model[4],testing,"four")
 		
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[5]  = model[5].fit(training)
 		accuracy[5] =  prediction_and_label(model[5],testing,"five")
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[6] = model[6].fit(training)
 		accuracy[6] = prediction_and_label(model[6],testing,"six")
 		print(accuracy[6])
 
-		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		testing=df_tfidf_train.sample(False,split_test,seed=42).limit(limit)
 		model[7]  = model[7].fit(training)
 		accuracy[7] = prediction_and_label(model[7],testing,"seven")
 		print(accuracy[7])
