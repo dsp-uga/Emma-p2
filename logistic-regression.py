@@ -7,7 +7,8 @@ from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 
 from pyspark.ml.feature import *
 from pyspark import SparkContext,SparkConf
-from pyspark.sql.functions import udf,col,split
+from pyspark.sql.functions import udf,col,split,lit
+
 import argparse
 import pyspark
 from pyspark.ml.linalg import Vectors, VectorUDT
@@ -147,23 +148,23 @@ def boosting(df_tfidf_train,model):
 	
 def build_labels(df_tfidf_train):
 	current_class = 0;
-	df_tfidf_train = df_tfidf_train.withColumn("zero",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("zero",one_vs_all_udf(df_tfidf_train.class_label,lit(0)))
 	current_class = 1
-	df_tfidf_train = df_tfidf_train.withColumn("one",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("one",one_vs_all_udf(df_tfidf_train.class_label,lit(1)))
 	current_class = 2
-	df_tfidf_train = df_tfidf_train.withColumn("two",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("two",one_vs_all_udf(df_tfidf_train.class_label,lit(2)))
 	current_class = 3
-	df_tfidf_train = df_tfidf_train.withColumn("three",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("three",one_vs_all_udf(df_tfidf_train.class_label,lit(3)))
 	current_class = 4
-	df_tfidf_train = df_tfidf_train.withColumn("four",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("four",one_vs_all_udf(df_tfidf_train.class_label,lit(4)))
 	current_class = 5
-	df_tfidf_train = df_tfidf_train.withColumn("five",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("five",one_vs_all_udf(df_tfidf_train.class_label,lit(5)))
 	current_class = 6
-	df_tfidf_train = df_tfidf_train.withColumn("six",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("six",one_vs_all_udf(df_tfidf_train.class_label,lit(6)))
 	current_class = 7
-	df_tfidf_train = df_tfidf_train.withColumn("seven",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("seven",one_vs_all_udf(df_tfidf_train.class_label,lit(7)))
 	current_class = 8
-	df_tfidf_train = df_tfidf_train.withColumn("eight",one_vs_all_udf(df_tfidf_train.class_label))
+	df_tfidf_train = df_tfidf_train.withColumn("eight",one_vs_all_udf(df_tfidf_train.class_label,lit(8)))
 	return df_tfidf_train
 
 def merge_col(*x):
@@ -248,8 +249,8 @@ def clean(x):
 	return (temp,x[1])
 
 
-def one_vs_all(x):
-		if x[0] ==current_class:
+def one_vs_all(x,y):
+		if float(x[0]) ==y:
 			return float(1)
 		else:
 			return float(0)
