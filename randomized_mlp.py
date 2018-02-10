@@ -98,11 +98,13 @@ def update_model(old_model):
 
 
 
-split_train = 0.4
-split_test = 0.4
+split_train = 0.1
+split_test = 0.1
 waste = 1 - split_train + split_test
 
 def boosting(df_tfidf_train,model):
+		if df_tfidf_train.rdd.isEmpty(): #fixing for empty dataset
+			return -1,model;
 		accuracy = [0 for i in range(0,8)]
 
 		training,testing=df_tfidf_train.randomSplit([split_train,split_test,waste])[:-1]
