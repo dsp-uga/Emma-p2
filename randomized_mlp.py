@@ -98,9 +98,11 @@ def update_model(old_model):
 
 
 
-split_train = 0.1
-split_test = 0.1
+split_train = 0.05
+split_test = 0.05
 waste = 1 - split_train + split_test
+
+
 
 def boosting(df_tfidf_train,model):
 		if df_tfidf_train.rdd.isEmpty(): #fixing for empty dataset
@@ -327,7 +329,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-df_tfidf_train = tfidf_processor(df_train_original,"text","features")
+df_tfidf_train = tfidf_processor(df_train_original,"text","features").repartition(5000)
 print("now processing tf-idf");
 
 df_tfidf_train = build_labels(df_tfidf_train)
