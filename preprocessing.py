@@ -1,24 +1,38 @@
+"""
+@author: Hiten, Prajay, Maulik.
+"""
+
+"""
+This file is a structured file for the Maleware classification of the Microsoft data.
+The processing in the file goes as below directions: 
+1. Download Byte-Lable files from the sources from the list of the text files. 
+2. Clean the text: Remove '??' from the Byte files and remove all lines with having all 0s.
+3. Split the terms and create N-grams for the each term. 
+4. Create Data Dictionary for generated terms.
+5. Train the Naive-Bayes model and predict the output.
+6. For small records: As the test result is already available, compare the test results with the
+predicted results and create a confusion matrix.
+"""
+
+from pyspark import SparkContext,SparkConf
+
+from pyspark.sql.types  import *
+from pyspark.sql.functions import udf,col,split
 from pyspark.sql import SQLContext
+
 from pyspark.mllib.classification import *
 from pyspark.mllib.util import MLUtils
-
-from pyspark.ml.feature import *
-from pyspark import SparkContext
-from pyspark.sql.functions import udf,col,split
-import argparse
-
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.linalg import SparseVector
-
+from pyspark.ml.feature import *
 
 import requests
-import os;
-from pyspark.sql.types  import *
+import os
 import sys
-#PATH = "https://storage.googleapis.com/uga-dsp/project2/data/bytes"
+import argparse
 
-sc = SparkContext()#"local[*]",'pyspark tuitorial'
-sqlContext = SQLContext(sc)
+
+
 
 def merge_col(*x):
 	temp = list();
@@ -67,14 +81,24 @@ def ngram_processor(df,n_count=3):
 	return df
 
 
-def fetch_url(x,path):
-	class_label = x[1][1]
-	url = x[1][0]
-	fetch_url = path+"/"+url+".bytes"
-	text = requests.get(fetch_url).text
-	entries = text.split(os.linesep)
-	entries = [(i.strip().replace("'",""),class_label) for i in  entries]
-	return entries;
+"""
+This function fetches the byte files data given the text file name.
+TODO: The path is right now static, which should be converted to a broadcast variable.
+@param file_row is a RDD row of the format(zip index, (byte file name, lable)).
+@return byte_data is the whole byte file as text.
+"""
+def fetch_url(file_row):
+    #Get the file name from the RDD row.
+    file_name = file_row[1][0]
+    #Path variable is the path to the google storage location of the byte files.
+    path = 'https://storage.googleapis.com/uga-dsp/project2/data/bytes'
+    #Set the byte file url.
+    fetch_url = path+"/"+ file_name +".bytes"
+    #Get the file data and convert into text.
+    byte_data = requests.get(fetch_url).text
+    return byte_data
+
+
 
 def open_row(x):
 	entries = [i for i in x[0].split(' ')]
@@ -82,18 +106,33 @@ def open_row(x):
 	return entries
 	
 
-def clean(x):
-	count = 0
-	temp = x[0].split(' ')[1:]
-	for i in range(0,len(temp)):
-		if temp[i] == '00' or temp[i] == '??':
-			count = count + 1
-	if count == len(temp):
-		return None
-	
-	
-	
-	return (temp,x[1])
+"""
+This function cleans the byte data. Removes headers, unwanted sequences of data and special characters.
+@param data_row is on byte file text for training.
+@return data_row is the cleaned file.
+@ref https://stackoverflow.com/questions/43260538/how-to-delete-words-with-more-than-six-letters-in-notepad
+"""
+def clean_data(data_row):
+    #Remove linefeed and new line.
+    data_row = re.sub('\\r\\n',' ',data_row)
+    #Remove question marks.
+    data_row = re.sub('\??','',data_row)
+    #Remove the rows with all zeros. There are rows where there is a sequence of 8 zeroes.
+    data_row = re.sub('00 00 00 00 00 00 00 00','',data_row)
+    #Remove the rows with all Cs. There are rows where there is a sequence of 8 zeroes.
+    data_row = re.sub('CC CC CC CC CC CC CC CC','',data_row)
+    #Remove the headers. Words larger than 2 characters.
+    data_row = re.sub(r'\b[A-Z|0-9]{3,}\b','',data_row)
+    #Strip the text
+    data_row = data_row.strip()
+    return data_row
+
+
+#Create the Spark Config and Context.
+conf = SparkConf().setAppName('P2MalewareClassification')
+sc = SparkContext.getOrCreate(conf=conf)
+#Create SQL context.
+sqlContext = SQLContext(sc)
 
 
 parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
@@ -109,31 +148,30 @@ parser.add_argument('-e','--path', type=str,
 
 args = vars(parser.parse_args())
 #print(args)
-rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1]-1,l[0]));
-rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
-rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1]-1,l[0]));
-rdd_train = rdd_train_x.join(rdd_train_y)
-rdd_test = rdd_test_x.join(rdd_test_y)
-#take 30 due to gc overhead
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None)
-#rdd_train = sc.parallelize(rdd_train)
-rdd_train.count();
-print("Download complete");
-rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l: l!=None)
-#rdd_test = sc.parallelize(rdd_test)
-rdd_test.count();
 
-print("Download complete")
+#Get the training file names.
+rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
+#Get the training lables.
+rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1],l[0]))
+#Get the testing file names.
+rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
+#Get the testing lables.
+rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1],l[0]))
+#Join training by index to create a merged set.
+rdd_train = rdd_train_x.join(rdd_train_y)
+#Join by zip-index to create a merged set. 
+rdd_test = rdd_test_x.join(rdd_test_y)
+
+
+#Get the data. Download and clean.
+rdd_train_text = rdd_train.map(fetch_url).map(clean_data)
+rdd_test_text = rdd_test.map(fetch_url).map(clean_data)
+print("Download and Clean complete.")
 #original dataframe
 
 
 df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
 df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
-#df_train_original = df_train_original.repartition(3000)
-#df_test_original = df_test_original.repartition(3000) 
-
-#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
 df_train_orignal.printSchema()
