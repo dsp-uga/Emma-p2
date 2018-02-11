@@ -98,7 +98,7 @@ def update_model(old_model):
 
 
 split_train = 0.100
-limit =40000
+limit =[80000,80000,80000,80000,80000,80000,80000,80000]
 
 
 
@@ -107,30 +107,30 @@ limit =40000
 def boosting(df_tfidf_train,model):
 		accuracy = [0 for i in range(0,8)]
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[0])
 		model[0] = model[0].fit(training)
 
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[1])
 		model[1]  = model[1].fit(training)
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[2])
 		model[2]  = model[2].fit(training)
 
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[3])
 		model[3] = model[3].fit(training)
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[4])
 		model[4] = model[4].fit(training)
 		
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[5])
 		model[5]  = model[5].fit(training)
 	
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[6])
 		model[6] = model[6].fit(training)
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[7])
 		model[7]  = model[7].fit(training)
 		
 		return model
@@ -330,7 +330,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 
 df_tfidf_train = tfidf_processor(df_train_original,"text","features")
 print("now processing tf-idf");
-df_tfidf_train = build_labels(df_tfidf_train).repartition(100)
+df_tfidf_train = build_labels(df_tfidf_train).repartition(5000)
 
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
