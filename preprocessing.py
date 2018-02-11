@@ -14,71 +14,25 @@ The processing in the file goes as below directions:
 predicted results and create a confusion matrix.
 """
 
+from pyspark.sql.functions import concat, col, lit
+from pyspark import SparkContext,SparkConf
+
 from pyspark import SparkContext,SparkConf
 
 from pyspark.sql.types  import *
 from pyspark.sql.functions import udf,col,split
 from pyspark.sql import SQLContext
 
-from pyspark.mllib.classification import *
-from pyspark.mllib.util import MLUtils
-from pyspark.mllib.regression import LabeledPoint
-from pyspark.mllib.linalg import SparseVector
+
 from pyspark.ml.feature import *
+from pyspark.ml.classification import *
 
 import requests
 import os
 import sys
 import argparse
+import re
 
-
-
-
-def merge_col(*x):
-	temp = list();
-	for i in x:
-		temp.extend(i)
-	return temp
-
-
-
-def tfidf_processor(df,inputCol="text",outputCol="tfidf_vector"):
-	hashingTF = HashingTF(inputCol=inputCol, outputCol="raw_features", numFeatures=400)
-	tf = hashingTF.transform(df)
-	idf = IDF(inputCol="raw_features", outputCol=outputCol,minDocFreq=3)
-	idfModel = idf.fit(tf)
-	df = idfModel.transform(tf)
-	return df.drop(col("raw_features"));
-
-
-def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="features"):
-	cv_train = CountVectorizer(inputCol=inputCol, outputCol=outputCol, vocabSize=3, minDF=2.0)
-	model = cv_train.fit(df)
-	df = model.transform(df)
-	return df
-
-
-
-
-def word2ved_processor(df):
-	wv_train =  Word2Vec(inputCol="text",outputCol="vector").setVectorSize(20)
-	model = wv_train.fit(df)
-	df = model.transform(df)
-	return df
-
-
-def ngram_processor(df,n_count=3):
-	cols = list();
-	for i in range(2,n_count+1):
-		cols.append("text_ngram_"+str(i))
-		ngram = NGram(n=i, inputCol="text", outputCol="text_ngram_"+str(i))
-		df = ngram.transform(df)
-
-	merge_udf = udf(merge_col)
-	df = df.withColumn("merge_text",merge_udf("text","text_ngram_2","text_ngram_3"))
-	df = df.withColumn("merge_text_array",split(col("merge_text"), ",")).drop(col("merge_text"))
-
-	return df
 
 
 """
@@ -98,13 +52,6 @@ def fetch_url(file_row):
     byte_data = requests.get(fetch_url).text
     return byte_data
 
-
-
-def open_row(x):
-	entries = [i for i in x[0].split(' ')]
-	entries.append(x[1])
-	return entries
-	
 
 """
 This function cleans the byte data. Removes headers, unwanted sequences of data and special characters.
@@ -128,6 +75,7 @@ def clean_data(data_row):
     return data_row
 
 
+
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
 sc = SparkContext.getOrCreate(conf=conf)
@@ -135,7 +83,7 @@ sc = SparkContext.getOrCreate(conf=conf)
 sqlContext = SQLContext(sc)
 
 
-parser = argparse.ArgumentParser(description='Welcome to Team Emma.')
+parser = argparse.ArgumentParser(description='Welcome to Maleware Classification. - Team Emma.')
 parser.add_argument('-a','--train_x', type=str,
                     help='training x set')
 parser.add_argument( '-b','--train_y' ,help='training y set')
@@ -149,87 +97,83 @@ parser.add_argument('-e','--path', type=str,
 args = vars(parser.parse_args())
 #print(args)
 
-#Get the training file names.
+#Get the training file names and make zip index as key.
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-#Get the training lables.
+#Get the training lables and make zip index as key.
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(l[1],l[0]))
-#Get the testing file names.
+#Get the testing file names and make zip index as key.
 rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
-#Get the testing lables.
+#Get the testing lables and make zip index as key.
 rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1],l[0]))
 #Join training by index to create a merged set.
 rdd_train = rdd_train_x.join(rdd_train_y)
 #Join by zip-index to create a merged set. 
 rdd_test = rdd_test_x.join(rdd_test_y)
 
-
-#Get the data. Download and clean.
-rdd_train_text = rdd_train.map(fetch_url).map(clean_data)
-rdd_test_text = rdd_test.map(fetch_url).map(clean_data)
+#Get the  file list files. 
+#Fetch the data.
+#Clean the Byte file of redundant information.
+#Zip with index everything. 
+#Join with the File-list, lable file. 
+#Keep the labels and byte file only. 
+rdd_train_text = rdd_train.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_train).map(lambda l: (l[1][0],l[1][1][1]))
+rdd_test_text = rdd_test.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_test).map(lambda l: (l[1][0],l[1][1][1]))
 print("Download and Clean complete.")
-#original dataframe
 
 
-df_train_orignal = sqlContext.createDataFrame(rdd_train,schema=["text","class_label"])
-df_test_orignal = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
+#Create data-frames from the RDD
+df_train_orignal = sqlContext.createDataFrame(rdd_train_text,schema=["text","class_label"])
+df_test_orignal = sqlContext.createDataFrame(rdd_test_text,schema=["text","class_label"])
+
+#Tokenize the document by each word and transform.
+tokenizer = Tokenizer(inputCol="text", outputCol="words")
+df_train_original =  tokenizer.transform(df_train_original)
+#Using the tokenized word find 2-gram words and transform.
+ngram2 = NGram(n=2, inputCol="words", outputCol="nGrams")
+df_train_original = ngram2.transform(df_train_original)
+#Using the tokenized word find 3-gram words and transform.
+ngram3 = NGram(n=3, inputCol="words", outputCol="nGrams3")
+df_train_original = ngram3.transform(df_train_original)
+#Using the tokenized word find 4-gram words and transform.
+ngram4 = NGram(n=4, inputCol="words", outputCol="nGrams4")
+df_train_original = ngram4.transform(df_train_original)
+#Now merge all the single words and n-grams. 
+#TODO: Find a better way to it.
+df_train_original_rdd = df_train_original.rdd
+df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+df_train_original = sqlContext.createDataFrame(df_train_original_rdd,schema=["label","text",'tokens'])
+
+#Create the hashing function from the tokens and find features.
+hashingTF = HashingTF(inputCol="tokens", outputCol="features", numFeatures=1000)
+df_train_original = hashingTF.transform(df_train_original)
+#Train the naive bayes model.
+nb = NaiveBayes(smoothing=1.0, modelType="multinomial")
+model = nb.fit(df_train_original)
 
 
-df_train_orignal.printSchema()
-
-df_train_orignal.cache()
-df_test_orignal.cache()
-
-## word2vec code
-
-#df_train_word2vec = word2ved_processor(df_train_orignal)
-#df_test_word2vec = word2ved_processor(df_test_orignal)
-#df_train_word2vec.show()
-#df_train_word2vec.show()
-
-
-##ngram code 
-#df_train_ngram = ngram_processor(df_train_orignal,n_count=3);
-#df_test_ngram = ngram_processor(df_test_orignal,n_count=3)
-
-#df_train_ngram.show()
-#df_test_ngram.show();
-
-#count vectorizer + ngram
-#df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
-#df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
-
-df_tfidf_train = tfidf_processor(df_train_orignal,"text","tfidf_vector");
-print("now processing tf-idf");
-df_tfidf_train.count();
-df_tfidf_test = tfidf_processor(df_test_orignal,"text","tfidf_vector");
-df_tfidf_test.count();
-df_tfidf_test = df_tfidf_test.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
-df_tfidf_train= df_tfidf_train.rdd.map(lambda l:LabeledPoint(l[1],l[-1].toArray()))
-print("processing complete");
-
-#print(df_tfidf_test.take(20)[-1][-1])
-#df_train_vectorizer.show();
-#df_test_vectorizer.show();
-#df_tfidf_train.show()
-#df_tfidf_test.show()
+#Tokenize the test data.
+df_test_orignal =  tokenizer.transform(df_test_orignal)
+#Get all the n-grams. Use the same ngram functions used in testing data.
+df_test_orignal = ngram2.transform(df_test_orignal)
+df_test_orignal = ngram3.transform(df_test_orignal)
+df_test_orignal = ngram4.transform(df_test_orignal)
+#Merge all the words and n-gram words.
+df_test_orignal_rdd = df_test_orignal.rdd
+df_test_orignal_rdd = df_test_orignal_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+df_test_orignal = sqlContext.createDataFrame(df_test_orignal_rdd,schema=["label","text",'tokens'])
+#Transform into the same hashing function. 
+#Doubtful assumption that the hashing would be same for both training and testing.
+df_test_orignal = hashingTF.transform(df_test_orignal)
+#Predict the output.
+prediction = model.transform(df_test_orignal)
 
 
-# Split data approximately into training (60%) and test (40%)
-training=df_tfidf_train
-test=df_tfidf_test
-
-# Train a naive Bayes model.
-model = NaiveBayes.train(training, 0.8)
-
-# Make prediction and test accuracy.
-predictionAndLabel = test.map(lambda p: (model.predict(p.features), p.label))
-accuracy = 1.0 * predictionAndLabel.filter(lambda pl: pl[0] == pl[1]).count() / test.count()
-#print(predictionAndLabel.map(lambda x:x[0]).collect())
-print('model accuracy {}'.format(accuracy))
+#Find accuracy from the correctly identified results.
+prediction_rdd = prediction.rdd
+prediction_accuracy = prediction_rdd.filter(lambda l : l[0] == int(l[6])).count()/prediction_rdd.count()
+print(prediction_accuracy)
 
 
-#print(df_tfidf_test.take(20)[-1][-1])
-#df_train_vectorizer.show();
-#df_test_vectorizer.show();
-#df_tfidf_train.show()
-#df_tfidf_test.show()
+#Save Results on the server.
+prediction_rdd = prediction_rdd.map(lambda l: int(l[6]))
+prediction_rdd.coalesce(1).saveAsTextFile('results')
