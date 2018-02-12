@@ -1,8 +1,9 @@
-
 from pyspark.sql import SQLContext
 from pyspark.ml.classification import *
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.mllib.evaluation import MulticlassMetrics
+
+from threading import Thread
 
 from pyspark.ml.feature import *
 from pyspark import SparkContext,SparkConf
@@ -11,6 +12,8 @@ from pyspark.sql.functions import udf,col,split,lit
 import argparse
 import pyspark
 from pyspark.ml.linalg import Vectors, VectorUDT
+
+
 import requests
 import os;
 from pyspark.sql.types  import *
@@ -20,10 +23,14 @@ import sys
 
 #"local[*]",'pyspark tuitorial'
 
+#https://medium.com/@rbahaguejr/threaded-tasks-in-pyspark-jobs-d5279844dac0
+
 #Spark configuration in
 conf = SparkConf()
 conf = conf.setMaster("local[*]")
 conf =conf.set("spark.driver.memory", "40G")
+con = conf.set('spark.scheduler.mode','FAIR')
+model_list =  dict();
 #conf.set("spark.driver.cores", 4)
 
 sc = SparkContext('local[*]','Team Emma',conf=conf)
@@ -36,104 +43,22 @@ current_class = 0
 
 
 layers = [100, 50,25,12,10,8,4, 2]
-def intialize_model():
-
-	model = list();
-
-	model_0 = MultilayerPerceptronClassifier(maxIter=100,labelCol="zero", layers=layers, blockSize=1, seed=123)
-	model_1 = MultilayerPerceptronClassifier(maxIter=100,labelCol="one", layers=layers, blockSize=1, seed=123)
-	model_2= MultilayerPerceptronClassifier(maxIter=100,labelCol="two", layers=layers, blockSize=1, seed=123)
-	model_3= MultilayerPerceptronClassifier(maxIter=100,labelCol="three", layers=layers, blockSize=1, seed=123)
-	model_4= MultilayerPerceptronClassifier(maxIter=100,labelCol="four", layers=layers, blockSize=1, seed=123)
-	model_5= MultilayerPerceptronClassifier(maxIter=100,labelCol="five", layers=layers, blockSize=1, seed=123)
-	model_6= MultilayerPerceptronClassifier(maxIter=100,labelCol="six", layers=layers, blockSize=1, seed=123)
-	model_7= MultilayerPerceptronClassifier(maxIter=100,labelCol="seven", layers=layers, blockSize=1, seed=123)	
-
-	model.append(model_0)
-	model.append(model_1)
-	model.append(model_2)
-	model.append(model_3)
-	model.append(model_4)
-	model.append(model_5)
-	model.append(model_6)
-	model.append(model_7)
 
 
-	return model
+split_train = 0.3
+limit =80000
 
 
-def update_model(old_model):
-	model = list()
-
-	model_0 = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="zero", blockSize=1, seed=123)
-	model_0.setInitialWeights(old_model[0].weights)
-	model_1 = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="one", blockSize=1, seed=123)
-	model_1.setInitialWeights(old_model[1].weights)
-	model_2= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="two", blockSize=1, seed=123)
-	model_2.setInitialWeights(old_model[2].weights)
-	model_3= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="three", blockSize=1, seed=123)
-	model_3.setInitialWeights(old_model[3].weights)
-	model_4= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="four", blockSize=1, seed=123)
-	model_4.setInitialWeights(old_model[4].weights)
-	model_5= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="five", blockSize=1, seed=123)
-	model_5.setInitialWeights(old_model[5].weights)
-	model_6= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="six", blockSize=1, seed=123)
-	model_6.setInitialWeights(old_model[6].weights)
-	model_7= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="seven", blockSize=1, seed=123)	
-	model_7.setInitialWeights(old_model[7].weights)
-
-	model.append(model_0)
-	model.append(model_1)
-	model.append(model_2)
-	model.append(model_3)
-	model.append(model_4)
-	model.append(model_5)
-	model.append(model_6)
-	model.append(model_7)
-
-
-	return model
-
-
-
-
-split_train = 0.100
-limit =[80000,80000,80000,80000,80000,80000,80000,80000]
-
-
-
-
-
-def boosting(df_tfidf_train,model):
-		accuracy = [0 for i in range(0,8)]
-
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[0])
-		model[0] = model[0].fit(training)
-
-
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[1])
-		model[1]  = model[1].fit(training)
-
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[2])
-		model[2]  = model[2].fit(training)
-
-
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[3])
-		model[3] = model[3].fit(training)
-
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[4])
-		model[4] = model[4].fit(training)
+def boosting(dataset,labelCol,iteration=20):
 		
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[5])
-		model[5]  = model[5].fit(training)
-	
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[6])
-		model[6] = model[6].fit(training)
+		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit[7])
-		model[7]  = model[7].fit(training)
-		
-		return model
+		for i in range(0,iteration):
+			training=dataset.sample(False,split_train,seed=42).limit(limit)
+			model_history =model.fit(training) #we need model history
+			model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+			model.setInitialWeights(model_history.weights)
+		model_list[labelCol] = model_history
 
 #calculate per col
 
@@ -173,7 +98,7 @@ def prediction_and_label(model,dataset,class_label):
 	labelCol=class_label, predictionCol="prediction", metricName="accuracy")
 	accuracy = evaluator.evaluate(predictions)
 	print("Class: "+ class_label + " Accuracy: "+str(accuracy))
-	return accuracy
+	return accuracy,predictions
 
 
 
@@ -296,7 +221,10 @@ print("Download complete")
 
 
 
-df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"]).limit(2000000)
+df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
+training , testing = df_train_original.randomSplit([0.4,0.6])
+training = training.limit(800000).repartition(10000)
+
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
 #df_train_original = df_train_original.repartition(10000)
@@ -328,9 +256,17 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-df_tfidf_train = tfidf_processor(df_train_original,"text","features")
 print("now processing tf-idf");
-df_tfidf_train = build_labels(df_tfidf_train).repartition(5000)
+training= tfidf_processor(training,"text","features").repartition(1000)
+testing= tfidf_processor(testing,"text","features").repartition(1000)
+training = build_labels(training)
+testing = build_labels(testing)
+
+training.count()
+testing.count()
+training.cache()
+testing.cache();
+print("loading completee")
 
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
@@ -347,43 +283,117 @@ df_tfidf_train = build_labels(df_tfidf_train).repartition(5000)
 
 # Split data approximately into training (60%) and test (40%)"""
 
+#https://stackoverflow.com/questions/10712002/create-an-empty-list-in-python-with-certain-size
 
-training , testing = df_tfidf_train.randomSplit([0.7,0.3])
-training.cache()
-testing.cache()
 
-model_list = intialize_model()
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
+print("Model Sequence one started for model 0")
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
+model_0= Thread(target=boosting, args=(training,"zero"))
 
-model_list = boosting(training,model_list)
-model_list = update_model(model_list)
 
-model_list = boosting(training,model_list)
+model_1 = Thread(target=boosting, args=(training,"one"))
+
+model_2 = Thread(target=boosting, args=(training,"two"))
+
+model_3 = Thread(target=boosting, args=(training,"three"))
+
+model_4 = Thread(target=boosting, args=(training,"four"))
+
+model_5 = Thread(target=boosting, args=(training,"five"))
+
+model_6 = Thread(target=boosting, args=(training,"six"))
+
+model_7 = Thread(target=boosting, args=(training,"seven"))
+
+
+model_0.start()
+model_1.start()
+model_2.start()
+model_3.start()
+model_4.start()
+model_5.start()
+model_6.start()
+model_7.start()
+
+
+model_0.join()
+model_1.join()
+model_2.join()
+model_3.join()
+model_4.join()
+model_5.join()
+model_6.join()
+model_7.join()
+
+print(model_list)
+"""
+model_list[0] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="zero")
+print("Model Sequence one started for model 1")
+model_list[1] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="one")
+print("Model Sequence one started for model 2")
+model_list[2] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="two")
+print("Model Sequence one started for model 3")
+model_list[3] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="three")
+print("Model Sequence one started for model 4")
+model_list[4] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="four")
+print("Model Sequence one started for model 5")
+model_list[5] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="five")
+print("Model Sequence one started for model 6")
+model_list[6] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="six")
+print("Model Sequence one started for model 7")
+model_list[7] = boosting(training.sample(False,split_train,seed=42).limit(limit*4),labelCol="seven")
+"""
+
+
 #training = training.repartition(5000)
 #testing = testing.repartition(50000)
 
 
-prediction_and_label(model_list[0],testing,"zero")
-prediction_and_label(model_list[1],testing,"one")
-prediction_and_label(model_list[2],testing,"two")
-prediction_and_label(model_list[3],testing,"three")
-prediction_and_label(model_list[4],testing,"four")
-prediction_and_label(model_list[5],testing,"five")
-prediction_and_label(model_list[6],testing,"six")
-prediction_and_label(model_list[7],testing,"seven")
+accuracy_1 ,prediction_1  = prediction_and_label(model_list["zero"],testing,"zero")
+accuracy_2 ,prediction_2  = prediction_and_label(model_list["one"],testing,"one")
+accuracy_3 ,prediction_3 = prediction_and_label(model_list["two"],testing,"two")
+accuracy_4 ,prediction_4 = prediction_and_label(model_list["three"],testing,"three")
+accuracy_5 ,prediction_5  = prediction_and_label(model_list["four"],testing,"four")
+accuracy_6 ,prediction_6  = prediction_and_label(model_list["five"],testing,"five")
+accuracy_7 ,prediction_7  = prediction_and_label(model_list["six"],testing,"six")
+accuracy_8 ,prediction_8  = prediction_and_label(model_list["seven"],testing,"seven")
+
+prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
+prediction_2  = prediction_2.withColumn("predictions", col("prediction").cast("int"))
+prediction_3  = prediction_3.withColumn("predictions", col("prediction").cast("int"))
+prediction_4  = prediction_4.withColumn("predictions", col("prediction").cast("int"))
+prediction_5  = prediction_5.withColumn("predictions", col("prediction").cast("int"))
+prediction_6  = prediction_6.withColumn("predictions", col("prediction").cast("int"))
+prediction_7  = prediction_7.withColumn("predictions", col("prediction").cast("int"))
+prediction_8  = prediction_8.withColumn("predictions", col("prediction").cast("int"))
+
+
+
+
+
+prediction_1 = prediction_1.groupBy("key").sum("predictions").alias("predictions_0")
+prediction_2 = prediction_2.groupBy("key").sum("predictions").alias("predictions_1")
+prediction_3 = prediction_3.groupBy("key").sum("predictions").alias("predictions_2")
+prediction_4 = prediction_4.groupBy("key").sum("predictions").alias("predictions_3")
+prediction_5 = prediction_5.groupBy("key").sum("predictions").alias("predictions_4")
+prediction_6 = prediction_6.groupBy("key").sum("predictions").alias("predictions_5")
+prediction_7 = prediction_7.groupBy("key").sum("predictions").alias("predictions_6")
+prediction_8 = prediction_8.groupBy("key").sum("predictions").alias("predictions_7")
+
+prediction_1.show();
+prediction_2.show();
+prediction_3.show();
+prediction_4.show();
+prediction_5.show();
+prediction_6.show();
+prediction_7.show();
+prediction_8.show();
+
+
+
+
+print("Program execution complete")
