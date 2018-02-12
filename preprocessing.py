@@ -122,9 +122,9 @@ print("Download and Clean complete.")
 
 
 #Create data-frames from the RDD
-df_train_orignal = sqlContext.createDataFrame(rdd_train_text,schema=["text","class_label"])
-df_test_orignal = sqlContext.createDataFrame(rdd_test_text,schema=["text","class_label"])
-
+df_train_original = sqlContext.createDataFrame(rdd_train_text,schema=["text","class_label"])
+df_test_original = sqlContext.createDataFrame(rdd_test_text,schema=["text","class_label"])
+print("Dataframe created.")
 #Tokenize the document by each word and transform.
 tokenizer = Tokenizer(inputCol="text", outputCol="words")
 df_train_original =  tokenizer.transform(df_train_original)
@@ -142,35 +142,37 @@ df_train_original = ngram4.transform(df_train_original)
 df_train_original_rdd = df_train_original.rdd
 df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
 df_train_original = sqlContext.createDataFrame(df_train_original_rdd,schema=["label","text",'tokens'])
-
+print("Tokenized and Ngramed.")
 #Create the hashing function from the tokens and find features.
 hashingTF = HashingTF(inputCol="tokens", outputCol="features", numFeatures=1000)
 df_train_original = hashingTF.transform(df_train_original)
 #Train the naive bayes model.
 nb = NaiveBayes(smoothing=1.0, modelType="multinomial")
 model = nb.fit(df_train_original)
-
+print("NaiveBayes Trained.")
 
 #Tokenize the test data.
-df_test_orignal =  tokenizer.transform(df_test_orignal)
+df_test_original =  tokenizer.transform(df_test_original)
 #Get all the n-grams. Use the same ngram functions used in testing data.
-df_test_orignal = ngram2.transform(df_test_orignal)
-df_test_orignal = ngram3.transform(df_test_orignal)
-df_test_orignal = ngram4.transform(df_test_orignal)
+df_test_original = ngram2.transform(df_test_original)
+df_test_original = ngram3.transform(df_test_original)
+df_test_original = ngram4.transform(df_test_original)
 #Merge all the words and n-gram words.
-df_test_orignal_rdd = df_test_orignal.rdd
-df_test_orignal_rdd = df_test_orignal_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
-df_test_orignal = sqlContext.createDataFrame(df_test_orignal_rdd,schema=["label","text",'tokens'])
+df_test_original_rdd = df_test_original.rdd
+df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+df_test_original = sqlContext.createDataFrame(df_test_original_rdd,schema=["label","text",'tokens'])
+print("Test tokenized and ngramed.")
 #Transform into the same hashing function. 
 #Doubtful assumption that the hashing would be same for both training and testing.
-df_test_orignal = hashingTF.transform(df_test_orignal)
+df_test_original = hashingTF.transform(df_test_original)
 #Predict the output.
-prediction = model.transform(df_test_orignal)
-
+prediction = model.transform(df_test_original)
+print("Prediction Done.")
 
 #Find accuracy from the correctly identified results.
 prediction_rdd = prediction.rdd
 prediction_accuracy = prediction_rdd.filter(lambda l : l[0] == int(l[6])).count()/prediction_rdd.count()
+print("Prediction Accuracy:")
 print(prediction_accuracy)
 
 
