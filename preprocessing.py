@@ -32,7 +32,7 @@ import os
 import sys
 import argparse
 import re
-
+import pyspark
 
 
 """
@@ -75,11 +75,20 @@ def clean_data(data_row):
     return data_row
 
 
+
+
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
-conf =conf.set("spark.driver.memory", "12G")
-conf =conf.set("spark.executor.memory", "2G")
-#conf.set("spark.driver.cores", 4)
+
+conf =conf.set("spark.driver.memory", "6G")
+conf =conf.set("spark.executor.memory", "6G")
+conf =conf.set('spark.driver.cores', '2')
+conf =conf.set('spark.executor.cores', '2')
+conf =conf.set('spark.driver.cores', '2')
+conf =conf.set('spark.python.worker.memory', '4G')
+conf =conf.set('spark.yarn.am.memoryOverhead', '1G')
+conf =conf.set('spark.yarn.driver.memoryOverhead', '2G')
+conf =conf.set('spark.yarn.executor.memoryOverhead', '2G')
 
 sc = SparkContext.getOrCreate(conf=conf)
 #Create SQL context.
@@ -121,66 +130,43 @@ rdd_test = rdd_test_x.join(rdd_test_y)
 #Keep the labels and byte file only. 
 rdd_train_text = rdd_train.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_train).map(lambda l: (l[1][0],l[1][1][1]))
 rdd_test_text = rdd_test.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_test).map(lambda l: (l[1][0],l[1][1][1]))
+
+rdd_train_text = rdd_train_text.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 print("Download and Clean complete.")
 
-
 #Create data-frames from the RDD
-df_train_original = sqlContext.createDataFrame(rdd_train_text,schema=["text","class_label"])
-df_test_original = sqlContext.createDataFrame(rdd_test_text,schema=["text","class_label"])
-print("Dataframe created.")
+df_train_original = sqlContext.createDataFrame(rdd_train_text,schema=["text","label"])
+df_test_original = sqlContext.createDataFrame(rdd_test_text,schema=["text","label"])
+
+
 #Tokenize the document by each word and transform.
 tokenizer = Tokenizer(inputCol="text", outputCol="words")
-df_train_original =  tokenizer.transform(df_train_original)
-#Using the tokenized word find 2-gram words and transform.
-ngram2 = NGram(n=2, inputCol="words", outputCol="nGrams")
-df_train_original = ngram2.transform(df_train_original)
-#Using the tokenized word find 3-gram words and transform.
-ngram3 = NGram(n=3, inputCol="words", outputCol="nGrams3")
-df_train_original = ngram3.transform(df_train_original)
+print("1.Tokenize")
 #Using the tokenized word find 4-gram words and transform.
-ngram4 = NGram(n=4, inputCol="words", outputCol="nGrams4")
-df_train_original = ngram4.transform(df_train_original)
-#Now merge all the single words and n-grams. 
-#TODO: Find a better way to it.
-df_train_original_rdd = df_train_original.rdd
-#df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
-df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0], l[4] + l[5]))
-df_train_original = sqlContext.createDataFrame(df_train_original_rdd,schema=["label","text",'tokens'])
-print("Tokenized and Ngramed.")
+ngram = NGram(n=4, inputCol=tokenizer.getOutputCol(), outputCol="nGrams")
+print("2.Ngram.")
 #Create the hashing function from the tokens and find features.
-hashingTF = HashingTF(inputCol="tokens", outputCol="features", numFeatures=10000)
-df_train_original = hashingTF.transform(df_train_original)
+hashingTF = HashingTF(inputCol=ngram.getOutputCol(), outputCol="features",numFeatures=10000)
+print("3.Hashing.")
 #Train the naive bayes model.
 nb = NaiveBayes(smoothing=1.0, modelType="multinomial")
-model = nb.fit(df_train_original)
-print("NaiveBayes Trained.")
-
-#Tokenize the test data.
-df_test_original =  tokenizer.transform(df_test_original)
-#Get all the n-grams. Use the same ngram functions used in testing data.
-df_test_original = ngram2.transform(df_test_original)
-df_test_original = ngram3.transform(df_test_original)
-df_test_original = ngram4.transform(df_test_original)
-#Merge all the words and n-gram words.
-df_test_original_rdd = df_test_original.rdd
-#df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
-df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0], l[4] + l[5]))
-df_test_original = sqlContext.createDataFrame(df_test_original_rdd,schema=["label","text",'tokens'])
-print("Test tokenized and ngramed.")
-#Transform into the same hashing function. 
-#Doubtful assumption that the hashing would be same for both training and testing.
-df_test_original = hashingTF.transform(df_test_original)
+print("4.Naive Bayes")
+#Pipeline.
+pipeline = Pipeline(stages=[tokenizer,ngram, hashingTF, nb])
+#Fit the model.
+model = pipeline.fit(df_train_original)
+print("5.Model done.")
 #Predict the output.
 prediction = model.transform(df_test_original)
 print("Prediction Done.")
 
 #Find accuracy from the correctly identified results.
 prediction_rdd = prediction.rdd
-prediction_accuracy = prediction_rdd.filter(lambda l : l[0] == int(l[6])).count()/prediction_rdd.count()
+prediction_accuracy = prediction_rdd.filter(lambda l : int(l[1]) == int(l[7])).count()/prediction_rdd.count()
 print("Prediction Accuracy:")
 print(prediction_accuracy)
 
 
 #Save Results on the server.
-prediction_rdd = prediction_rdd.map(lambda l: int(l[6]))
+prediction_rdd = prediction_rdd.map(lambda l: int(l[7]))
 prediction_rdd.coalesce(1).saveAsTextFile('results')
