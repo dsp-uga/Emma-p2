@@ -80,14 +80,14 @@ def clean_data(data_row):
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
 
-conf =conf.set("spark.driver.memory", "6G")
-conf =conf.set("spark.executor.memory", "6G")
+conf =conf.set('spark.driver.memory', '6g')
+conf =conf.set('spark.executor.memory', '6g')
 conf =conf.set('spark.driver.cores', '2')
 conf =conf.set('spark.executor.cores', '2')
-conf =conf.set('spark.python.worker.memory', '4G')
-conf =conf.set('spark.yarn.am.memoryOverhead', '1G')
-conf =conf.set('spark.yarn.driver.memoryOverhead', '2G')
-conf =conf.set('spark.yarn.executor.memoryOverhead', '2G')
+conf =conf.set('spark.python.worker.memory', '4g')
+conf =conf.set('spark.yarn.am.memoryOverhead', '1g')
+conf =conf.set('spark.yarn.driver.memoryOverhead', '2g')
+conf =conf.set('spark.yarn.executor.memoryOverhead', '2g')
 
 sc = SparkContext.getOrCreate(conf=conf)
 #Create SQL context.
