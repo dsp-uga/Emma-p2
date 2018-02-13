@@ -75,9 +75,12 @@ def clean_data(data_row):
     return data_row
 
 
-
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
+conf =conf.set("spark.driver.memory", "12G")
+conf =conf.set("spark.executor.memory", "2G")
+#conf.set("spark.driver.cores", 4)
+
 sc = SparkContext.getOrCreate(conf=conf)
 #Create SQL context.
 sqlContext = SQLContext(sc)
@@ -140,11 +143,12 @@ df_train_original = ngram4.transform(df_train_original)
 #Now merge all the single words and n-grams. 
 #TODO: Find a better way to it.
 df_train_original_rdd = df_train_original.rdd
-df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+#df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+df_train_original_rdd = df_train_original_rdd.map(lambda l : (int(l[1]),l[0], l[4] + l[5]))
 df_train_original = sqlContext.createDataFrame(df_train_original_rdd,schema=["label","text",'tokens'])
 print("Tokenized and Ngramed.")
 #Create the hashing function from the tokens and find features.
-hashingTF = HashingTF(inputCol="tokens", outputCol="features", numFeatures=1000)
+hashingTF = HashingTF(inputCol="tokens", outputCol="features", numFeatures=10000)
 df_train_original = hashingTF.transform(df_train_original)
 #Train the naive bayes model.
 nb = NaiveBayes(smoothing=1.0, modelType="multinomial")
@@ -159,7 +163,8 @@ df_test_original = ngram3.transform(df_test_original)
 df_test_original = ngram4.transform(df_test_original)
 #Merge all the words and n-gram words.
 df_test_original_rdd = df_test_original.rdd
-df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+#df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0],l[2] + l[3] + l[4] + l[5]))
+df_test_original_rdd = df_test_original_rdd.map(lambda l : (int(l[1]),l[0], l[4] + l[5]))
 df_test_original = sqlContext.createDataFrame(df_test_original_rdd,schema=["label","text",'tokens'])
 print("Test tokenized and ngramed.")
 #Transform into the same hashing function. 
