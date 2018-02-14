@@ -298,7 +298,11 @@ parser.add_argument('-c','--test_x', type=str,
 parser.add_argument('-e','--path', type=str,
                     help='path to folder')
 
+parser.add_argument('-output','--path', type=str,
+                    help='path to folder')
+
 args = vars(parser.parse_args())
+output_path = args['output']
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
@@ -471,7 +475,7 @@ prediction.show();
 
 
 output = prediction.rdd.coalesce(1).map(toCSVLine)
-output.saveAsTextFile('gs://dspproject2/result_large.txt')
+output.saveAsTextFile(output_path)
 
 #prediction = prediction.join(prediction_3,prediction.key==prediction_3.key).select(prediction["key"],"prediction_1","prediction_2","prediction_3")
 
