@@ -83,8 +83,8 @@ def update_model(old_model):
 	model_6.setInitialWeights(old_model[6].weights)
 	model_7= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="eight", blockSize=1, seed=123)	
 	model_7.setInitialWeights(old_model[7].weights)
-	model_8= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="nine", blockSize=1, seed=123)	
-	model_8.setInitialWeights(old_model[7].weights)
+	model_8= MultilayerPercsetInitialWeightseptronClassifier(maxIter=100, layers=layers,labelCol="nine", blockSize=1, seed=123)	
+	model_8.(old_model[7].weights)
 
 	model.append(model_0)
 	model.append(model_1)
@@ -103,7 +103,7 @@ def update_model(old_model):
 
 
 split_train = 0.200
-limit =200000
+limit =20000
 
 
 
@@ -356,7 +356,7 @@ df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_l
 
 testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
 training = df_train_original.randomSplit([0.4,0.6])[0]
-training = training.limit(1600000)
+training = training.limit(200000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
@@ -419,38 +419,34 @@ model_list = intialize_model()
 
 print("Model 1")
 model_list[0]= boosting(training,model_list[0],"one")
-prediction_1  =prediction_and_label(model_list[0],testing,"one")
-
 print("Model 2")
 model_list[1]= boosting(training,model_list[1],"two")
-prediction_2  = prediction_and_label(model_list[1],testing,"two")
-
 print("Model 3")
 model_list[2]= boosting(training,model_list[2],"three")
-prediction_3 = prediction_and_label(model_list[2],testing,"three")
-
 print("Model 4")
 model_list[3]= boosting(training,model_list[3],"four")
-prediction_4  = prediction_and_label(model_list[3],testing,"four")
-
 print("Model 5")
 model_list[4]= boosting(training,model_list[4],"five")
-prediction_5  = prediction_and_label(model_list[4],testing,"five")
 print("Model 6")
 model_list[5]= boosting(training,model_list[5],"six")
-prediction_6  = prediction_and_label(model_list[5],testing,"six")
 print("Model 7")
 model_list[6]= boosting(training,model_list[6],"seven")
-prediction_7  = prediction_and_label(model_list[6],testing,"seven")
 print("Model 8")
 model_list[7]= boosting(training,model_list[7],"eight")
-prediction_8 = prediction_and_label(model_list[7],testing,"eight")
 print("Model 9")
 model_list[8]= boosting(training,model_list[8],"nine")
-prediction_9 = prediction_and_label(model_list[8],testing,"nine")
 
 training.unpersist();
 
+prediction_1  =prediction_and_label(model_list[0],testing,"one")
+prediction_2  = prediction_and_label(model_list[1],testing,"two")
+prediction_3 = prediction_and_label(model_list[2],testing,"three")
+prediction_4  = prediction_and_label(model_list[3],testing,"four")
+prediction_5  = prediction_and_label(model_list[4],testing,"five")
+prediction_6  = prediction_and_label(model_list[5],testing,"six")
+prediction_7  = prediction_and_label(model_list[6],testing,"seven")
+prediction_8 = prediction_and_label(model_list[7],testing,"eight")
+prediction_9 = prediction_and_label(model_list[8],testing,"nine")
 
 prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
 prediction_2  = prediction_2.withColumn("predictions", col("prediction").cast("int"))
