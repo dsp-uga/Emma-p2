@@ -26,6 +26,7 @@ from pyspark.sql import SQLContext
 
 from pyspark.ml.feature import *
 from pyspark.ml.classification import *
+from pyspark.ml import Pipeline
 
 import requests
 import os
@@ -60,16 +61,18 @@ This function cleans the byte data. Removes headers, unwanted sequences of data 
 @ref https://stackoverflow.com/questions/43260538/how-to-delete-words-with-more-than-six-letters-in-notepad
 """
 def clean_data(data_row):
+    #Remove the rows with all zeros. There are rows where there is a sequence of 8 zeroes.
+    data_row = re.sub('00 00 00 00','',data_row)
+    #Remove the rows with all Cs. There are rows where there is a sequence of 8 zeroes.
+    data_row = re.sub('CC CC CC CC','',data_row)
     #Remove linefeed and new line.
     data_row = re.sub('\\r\\n',' ',data_row)
     #Remove question marks.
     data_row = re.sub('\??','',data_row)
-    #Remove the rows with all zeros. There are rows where there is a sequence of 8 zeroes.
-    data_row = re.sub('00 00 00 00 00 00 00 00','',data_row)
-    #Remove the rows with all Cs. There are rows where there is a sequence of 8 zeroes.
-    data_row = re.sub('CC CC CC CC CC CC CC CC','',data_row)
     #Remove the headers. Words larger than 2 characters.
     data_row = re.sub(r'\b[A-Z|0-9]{3,}\b','',data_row)
+    #Remove Multiple Spaces to one.
+    data_row = re.sub(r' +','',data_row)
     #Strip the text
     data_row = data_row.strip()
     return data_row
@@ -80,10 +83,10 @@ def clean_data(data_row):
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
 
-conf =conf.set('spark.driver.memory', '6g')
-conf =conf.set('spark.executor.memory', '6g')
-conf =conf.set('spark.driver.cores', '2')
-conf =conf.set('spark.executor.cores', '2')
+conf =conf.set('spark.driver.memory', '8g')
+conf =conf.set('spark.executor.memory', '8g')
+conf =conf.set('spark.driver.cores', '4')
+conf =conf.set('spark.executor.cores', '4')
 conf =conf.set('spark.python.worker.memory', '4g')
 conf =conf.set('spark.yarn.am.memoryOverhead', '1g')
 conf =conf.set('spark.yarn.driver.memoryOverhead', '2g')
@@ -127,22 +130,26 @@ rdd_test = rdd_test_x.join(rdd_test_y)
 #Zip with index everything. 
 #Join with the File-list, lable file. 
 #Keep the labels and byte file only. 
-rdd_train_text = rdd_train.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_train).map(lambda l: (l[1][0],l[1][1][1]))
-rdd_test_text = rdd_test.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_test).map(lambda l: (l[1][0],l[1][1][1]))
+rdd_train_text = rdd_train.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_train).map(lambda l: (int(l[1][1][1]) - 1,l[1][0])).sortByKey()
+rdd_test_text = rdd_test.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_test).map(lambda l: (int(l[1][1][1]) - 1,l[1][0])).sortByKey()
 
 rdd_train_text = rdd_train_text.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+rdd_test_text = rdd_test_text.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+
+rdd_train_text.collect()
+rdd_test_text.collect()
 print("Download and Clean complete.")
 
 #Create data-frames from the RDD
-df_train_original = sqlContext.createDataFrame(rdd_train_text,schema=["text","label"])
-df_test_original = sqlContext.createDataFrame(rdd_test_text,schema=["text","label"])
+df_train_original = sqlContext.createDataFrame(rdd_train_text,schema=["label","text"])
+df_test_original = sqlContext.createDataFrame(rdd_test_text,schema=["label","text"])
 
 
 #Tokenize the document by each word and transform.
 tokenizer = Tokenizer(inputCol="text", outputCol="words")
 print("1.Tokenize")
 #Using the tokenized word find 4-gram words and transform.
-ngram = NGram(n=4, inputCol=tokenizer.getOutputCol(), outputCol="nGrams")
+ngram = NGram(n=5, inputCol=tokenizer.getOutputCol(), outputCol="nGrams")
 print("2.Ngram.")
 #Create the hashing function from the tokens and find features.
 hashingTF = HashingTF(inputCol=ngram.getOutputCol(), outputCol="features",numFeatures=10000)
@@ -160,12 +167,10 @@ prediction = model.transform(df_test_original)
 print("Prediction Done.")
 
 #Find accuracy from the correctly identified results.
-prediction_rdd = prediction.rdd
-prediction_accuracy = prediction_rdd.filter(lambda l : int(l[1]) == int(l[7])).count()/prediction_rdd.count()
-print("Prediction Accuracy:")
-print(prediction_accuracy)
+prediction_result = prediction.select('label',prediction["prediction"].cast(IntegerType()))
+prediction_result.collect()
+prediction_result.select((prediction_result["prediction"] + 1).cast(StringType())).coalesce(1).write.text('gs://nb-p2-2/results5gram')
 
-
-#Save Results on the server.
-prediction_rdd = prediction_rdd.map(lambda l: int(l[7]))
-prediction_rdd.coalesce(1).saveAsTextFile('results')
+prediction_result_match = prediction_result.filter(col('label') == col('prediction')).count()
+print('Accuracy:')
+print(prediction_result_match/prediction_result.count())
