@@ -102,7 +102,7 @@ def update_model(old_model):
 
 
 
-split_train = 0.100
+split_train = 0.200
 limit =200000
 
 
@@ -220,6 +220,21 @@ def ngram_processor(df,n_count=3):
 	return df
 
 
+
+
+def fetch_url_testing(x,path,testing=False):
+	key = x[0]
+	url =x[1]
+	fetch_url = path+"/"+url+".bytes"
+	print(fetch_url)
+	print(key)
+	text = requests.get(fetch_url).text
+	entries = text.split(os.linesep)
+	entries = [(i.strip().replace("'",""),key) for i in  entries]
+	return entries;
+
+
+
 def fetch_url(x,path):
 	key = x[0]
 	class_label = x[1][1]
@@ -253,11 +268,12 @@ def clean(x):
 	return (temp,label,key)
 
 
+
+
 def clean_test(x):
-	label = 0
-	key = x[2]
+	key = x[1]
 	count = 0
-	class_label = x[2]
+	class_label = x[0]
 	temp = x[0].split(' ')[1:]
 	for i in range(0,len(temp)):
 		if temp[i] == '00' or temp[i] == '??':
@@ -265,9 +281,7 @@ def clean_test(x):
 	if count == len(temp):
 		return None
 	
-	
-	
-	return (temp,key)
+	return (key,temp)
 
 
 #https://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
@@ -298,7 +312,7 @@ parser.add_argument('-c','--test_x', type=str,
 parser.add_argument('-e','--path', type=str,
                     help='path to folder')
 
-parser.add_argument('-output','--path', type=str,
+parser.add_argument('-o','--output', type=str,
                     help='path to folder')
 
 args = vars(parser.parse_args())
@@ -306,29 +320,29 @@ output_path = args['output']
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
-rdd_test = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))#.take(2);
+rdd_test = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
+rdd_train = rdd_train_x.join(rdd_train_y)
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
-rdd_train = rdd_train_x.join(rdd_train_y)#.take(2)
+#rdd_train = rdd_train_x.join(rdd_train_y)#.take(2)
 
-#rdd_test = sc.parallelize(rdd_test)
-#rdd_train = sc.parallelize(rdd_train)
 #print("Test Zeros" + str(rdd_test.count()));
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
 
 
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(10000)
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(100)
 
 
 #piigy back the rdd intoder to main the flow same
 
-rdd_test = rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(10000)
+rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(100)
+
 
 
 
 rdd_train = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
-rdd_test = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+rdd_test = rdd_test.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 #rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l: l!=None)
@@ -337,14 +351,12 @@ rdd_test = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 
-
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
 
 
-testing = sqlContext.createDataFrame(rdd_train,schema=["text","key"])
-
+testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
 training = df_train_original.randomSplit([0.4,0.6])[0]
-training = training.limit(800000)
+training = training.limit(1600000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
@@ -478,4 +490,3 @@ output = prediction.rdd.coalesce(1).map(toCSVLine)
 output.saveAsTextFile(output_path)
 
 #prediction = prediction.join(prediction_3,prediction.key==prediction_3.key).select(prediction["key"],"prediction_1","prediction_2","prediction_3")
-
