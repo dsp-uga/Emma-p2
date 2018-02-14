@@ -306,8 +306,8 @@ rdd_test = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))#
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)#.take(2)
 
-rdd_test = sc.parallelize(rdd_test)
-rdd_train = sc.parallelize(rdd_train)
+#rdd_test = sc.parallelize(rdd_test)
+#rdd_train = sc.parallelize(rdd_train)
 #print("Test Zeros" + str(rdd_test.count()));
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
