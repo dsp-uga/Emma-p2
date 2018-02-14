@@ -103,7 +103,7 @@ def update_model(old_model):
 
 
 split_train = 0.100
-limit =80000
+limit =200000
 
 
 
@@ -115,7 +115,7 @@ def boosting(df_tfidf_train,model,labelCol):
 		print("performing boosting")
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training)
-		'''
+	
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 2")
@@ -131,25 +131,9 @@ def boosting(df_tfidf_train,model,labelCol):
 		print("iteration 4")
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
-		print("iteration 5")
 		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training)
-		print("iteration 6")
-		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
-		model.setInitialWeights(temp.weights)
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		print("iteration 7")
-		temp = model.fit(training)
-		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
-		model.setInitialWeights(temp.weights)
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
-		print("iteration 8")
-		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
-		model.setInitialWeights(temp.weights)
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
-		'''
+		
 
 		return temp
 #calculate per col
@@ -183,14 +167,18 @@ def merge_col(*x):
 	return temp
 
 
-def prediction_and_label(model,dataset,class_label):
+def prediction_and_label(model,dataset,class_label,validation=False):
 
 	predictions = model.transform(dataset)
-	evaluator = MulticlassClassificationEvaluator(
-	labelCol=class_label, predictionCol="prediction", metricName="accuracy")
-	accuracy = evaluator.evaluate(predictions)
-	print("Class: "+ class_label + " Accuracy: "+str(accuracy))
-	return accuracy,predictions.repartition(3000)
+
+	if validation:
+		evaluator = MulticlassClassificationEvaluator(
+		labelCol=class_label, predictionCol="prediction", metricName="accuracy")
+		accuracy = evaluator.evaluate(predictions)
+		print("Class: "+ class_label + " Accuracy: "+str(accuracy))
+		return accuracy,predictions.repartition(3000)
+	else:
+		return predictions.repartition(3000)
 
 
 
@@ -265,6 +253,28 @@ def clean(x):
 	return (temp,label,key)
 
 
+def clean_test(x):
+	label = 0
+	key = x[2]
+	count = 0
+	class_label = x[2]
+	temp = x[0].split(' ')[1:]
+	for i in range(0,len(temp)):
+		if temp[i] == '00' or temp[i] == '??':
+			count = count + 1
+	if count == len(temp):
+		return None
+	
+	
+	
+	return (temp,key)
+
+
+#https://stackoverflow.com/questions/31898964/how-to-write-the-resulting-rdd-to-a-csv-file-in-spark-python
+def toCSVLine(data):
+  return ','.join(str(d) for d in data)
+
+
 def one_vs_all(x,y):
 		if float(x[0]) ==y:
 			return float(1)
@@ -292,9 +302,13 @@ args = vars(parser.parse_args())
 #print(args)
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
-#rdd_test_x = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]));
+rdd_test = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))#.take(2);
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
-rdd_train = rdd_train_x.join(rdd_train_y)
+rdd_train = rdd_train_x.join(rdd_train_y)#.take(2)
+
+rdd_test = sc.parallelize(rdd_test)
+rdd_train = sc.parallelize(rdd_train)
+#print("Test Zeros" + str(rdd_test.count()));
 #rdd_test = rdd_test_x.join(rdd_test_y)
 #take 30 due to gc overhead
 
@@ -302,7 +316,15 @@ rdd_train = rdd_train_x.join(rdd_train_y)
 rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(10000)
 
 
+#piigy back the rdd intoder to main the flow same
+
+rdd_test = rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(10000)
+
+
+
 rdd_train = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
+
+rdd_test = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 #rdd_test= rdd_test.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l: l!=None)
@@ -314,8 +336,11 @@ rdd_train = rdd_train.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
 
-training,testing = df_train_original.randomSplit([0.4,0.6])
-training = training.limit(400000)
+
+testing = sqlContext.createDataFrame(rdd_train,schema=["text","key"])
+
+training = df_train_original.randomSplit([0.4,0.6])[0]
+training = training.limit(800000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
@@ -352,7 +377,6 @@ training = tfidf_processor(training,"text","features")
 testing = tfidf_processor(testing,"text","features")
 print("now processing tf-idf");
 training = build_labels(training)
-testing = build_labels(testing)
 
 
 training = training.repartition(5000)
@@ -379,36 +403,37 @@ model_list = intialize_model()
 
 print("Model 1")
 model_list[0]= boosting(training,model_list[0],"one")
-accuracy_1,prediction_1  =prediction_and_label(model_list[0],testing,"one")
+prediction_1  =prediction_and_label(model_list[0],testing,"one")
 
 print("Model 2")
 model_list[1]= boosting(training,model_list[1],"two")
-accuracy_2,prediction_2  = prediction_and_label(model_list[1],testing,"two")
+prediction_2  = prediction_and_label(model_list[1],testing,"two")
 
 print("Model 3")
 model_list[2]= boosting(training,model_list[2],"three")
-accuracy_3,prediction_3 = prediction_and_label(model_list[2],testing,"three")
+prediction_3 = prediction_and_label(model_list[2],testing,"three")
 
 print("Model 4")
 model_list[3]= boosting(training,model_list[3],"four")
-accuracy_4,prediction_4  = prediction_and_label(model_list[3],testing,"four")
+prediction_4  = prediction_and_label(model_list[3],testing,"four")
 
 print("Model 5")
 model_list[4]= boosting(training,model_list[4],"five")
-accuracy_5,prediction_5  = prediction_and_label(model_list[4],testing,"five")
+prediction_5  = prediction_and_label(model_list[4],testing,"five")
 print("Model 6")
 model_list[5]= boosting(training,model_list[5],"six")
-accuracy_6,prediction_6  = prediction_and_label(model_list[5],testing,"six")
+prediction_6  = prediction_and_label(model_list[5],testing,"six")
 print("Model 7")
 model_list[6]= boosting(training,model_list[6],"seven")
-accuracy_7,prediction_7  = prediction_and_label(model_list[6],testing,"seven")
+prediction_7  = prediction_and_label(model_list[6],testing,"seven")
 print("Model 8")
 model_list[7]= boosting(training,model_list[7],"eight")
-accuracy_8,prediction_8 = prediction_and_label(model_list[7],testing,"eight")
-
+prediction_8 = prediction_and_label(model_list[7],testing,"eight")
+print("Model 9")
 model_list[8]= boosting(training,model_list[8],"nine")
-accuracy_9,prediction_9 = prediction_and_label(model_list[8],testing,"nine")
+prediction_9 = prediction_and_label(model_list[8],testing,"nine")
 
+training.unpersist();
 
 
 prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
@@ -442,9 +467,11 @@ prediction = prediction.join(prediction_6,prediction.key==prediction_6.key).drop
 prediction = prediction.join(prediction_7,prediction.key==prediction_7.key).drop(prediction_7.key)
 prediction = prediction.join(prediction_8,prediction.key==prediction_8.key).drop(prediction_8.key)
 prediction = prediction.join(prediction_9,prediction.key==prediction_9.key).drop(prediction_9.key)
-prediction.show()
-prediction.repartition(1).write.csv("test.csv", sep='|')
+prediction.show();
+
+
+output = prediction.rdd.coalesce(1).map(toCSVLine)
+output.saveAsTextFile('gs://dspproject2/result_large.txt')
 
 #prediction = prediction.join(prediction_3,prediction.key==prediction_3.key).select(prediction["key"],"prediction_1","prediction_2","prediction_3")
 
-prediction.show();
