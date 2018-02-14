@@ -26,6 +26,9 @@ conf =conf.set("spark.driver.memory", "12G")
 conf =conf.set("spark.executor.memory", "2G")
 #conf.set("spark.driver.cores", 4)
 
+
+sample_dict = {1:0.3,2:0.3,3:0.3,4:0.3,5:0.3,6:0.3,7:0.3,8:0.3,9:0.3}
+
 sc = SparkContext(conf=conf)
 
 sqlContext = SQLContext(sc)
@@ -84,7 +87,7 @@ def update_model(old_model):
 	model_7= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="eight", blockSize=1, seed=123)	
 	model_7.setInitialWeights(old_model[7].weights)
 	model_8= MultilayerPercsetInitialWeightseptronClassifier(maxIter=100, layers=layers,labelCol="nine", blockSize=1, seed=123)	
-	model_8.(old_model[7].weights)
+	model_8.setInitialWeights(old_model[7].weights)
 
 	model.append(model_0)
 	model.append(model_1)
@@ -113,26 +116,30 @@ def boosting(df_tfidf_train,model,labelCol):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
-	
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		temp = model.fit(training_sample)
+		training_sample.unpersist();
+
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 2")
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		temp = model.fit(training_sample)
+		training_sample.unpersist();
 		
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteratin 3")
 
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		temp = model.fit(training_sample)
+		training_sample.unpersist();
 		print("iteration 4")
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
-		training=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training)
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training_sample.unpersist(); #request spark that we dont need it in memory
+		temp = model.fit(training_sample)
 		
 
 		return temp
@@ -352,7 +359,7 @@ rdd_test = rdd_test.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
-
+df_train_original = df_train_orignal.sampleBy("key",sample_config)
 
 testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
 training = df_train_original.randomSplit([0.4,0.6])[0]
