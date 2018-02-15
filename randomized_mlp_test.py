@@ -29,9 +29,8 @@ conf = conf.set("spark.yarn.driver.memoryOverhea","5G")
 
 
 sample_config= 
-{5:0.27,7:0.22,4:0.14,6:0.11,9:0.09,8:0.044,1:0.04,2:0.04,3:0.03}
+{5:0.4,7:0.4,4:0.4,6:0.4,9:0.9,8:0.4,1:0.4,2:0.4,3:0.3}
 
-{1:0.2,2:0.2,3:0.2,4:0.8,5:0.8,6:0.5,7:0.9,8:0.2,9:0.7}
 
 sc = SparkContext(conf=conf)
 
@@ -74,24 +73,24 @@ def intialize_model():
 
 def update_model(old_model):
 	model = list()
-	model_0 = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="one", blockSize=1, seed=123)
+	model_0 = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="one", blockSize=1, seed=123)
 	model_0.setInitialWeights(old_model[0].weights)
-	model_1 = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="two", blockSize=1, seed=123)
+	model_1 = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="two", blockSize=1, seed=123)
 	model_1.setInitialWeights(old_model[1].weights)
-	model_2= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="three", blockSize=1, seed=123)
+	model_2= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="three", blockSize=1, seed=123)
 	model_2.setInitialWeights(old_model[2].weights)
-	model_3= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="four", blockSize=1, seed=123)
+	model_3= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="four", blockSize=1, seed=123)
 	model_3.setInitialWeights(old_model[3].weights)
-	model_4= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="five", blockSize=1, seed=123)
+	model_4= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="five", blockSize=1, seed=123)
 	model_4.setInitialWeights(old_model[4].weights)
-	model_5= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="six", blockSize=1, seed=123)
+	model_5= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="six", blockSize=1, seed=123)
 	model_5.setInitialWeights(old_model[5].weights)
-	model_6= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="seven", blockSize=1, seed=123)
+	model_6= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="seven", blockSize=1, seed=123)
 	model_6.setInitialWeights(old_model[6].weights)
-	model_7= MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol="eight", blockSize=1, seed=123)	
+	model_7= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="eight", blockSize=1, seed=123)	
 	model_7.setInitialWeights(old_model[7].weights)
 	model_8= MultilayerPercsetInitialWeightseptronClassifier(maxIter=100, layers=layers,labelCol="nine", blockSize=1, seed=123)	
-	model_8.setInitialWeights(old_model[7].weights)
+	model_8.setInitialWeights(old_model[8].weights)
 
 	model.append(model_0)
 	model.append(model_1)
@@ -120,6 +119,18 @@ def boosting(df_tfidf_train,model,labelCol):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		temp = model.fit(training_sample)
+
+		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		model.setInitialWeights(temp.weights)
+		print("iteration 2")
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		temp = model.fit(training_sample)
+
+		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		model.setInitialWeights(temp.weights)
+		print("iteration 2")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training_sample)
 
