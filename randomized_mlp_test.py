@@ -22,12 +22,16 @@ import sys
 
 #Spark configuration in
 conf = SparkConf()
-conf =conf.set("spark.driver.memory", "12G")
-conf =conf.set("spark.executor.memory", "2G")
+conf =conf.set("spark.driver.memory", "90G")
+conf = conf.set("spark.yarn.executor.memoryOverhead","5G")
+conf = conf.set("spark.yarn.driver.memoryOverhea","5G")
 #conf.set("spark.driver.cores", 4)
 
 
-sample_dict = {1:0.3,2:0.3,3:0.3,4:0.3,5:0.3,6:0.3,7:0.3,8:0.3,9:0.3}
+sample_config= 
+{5:0.27,7:0.22,4:0.14,6:0.11,9:0.09,8:0.044,1:0.04,2:0.04,3:0.03}
+
+{1:0.2,2:0.2,3:0.2,4:0.8,5:0.8,6:0.5,7:0.9,8:0.2,9:0.7}
 
 sc = SparkContext(conf=conf)
 
@@ -105,8 +109,8 @@ def update_model(old_model):
 
 
 
-split_train = 0.200
-limit =20000
+split_train = 0.300
+limit =30000
 
 
 
@@ -118,28 +122,19 @@ def boosting(df_tfidf_train,model,labelCol):
 		print("performing boosting")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training_sample)
-		training_sample.unpersist();
 
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 2")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training_sample)
-		training_sample.unpersist();
-		
-		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
-		model.setInitialWeights(temp.weights)
-		print("iteratin 3")
 
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		temp = model.fit(training_sample)
-		training_sample.unpersist();
-		print("iteration 4")
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
+		print("iteration 2")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
-		training_sample.unpersist(); #request spark that we dont need it in memory
 		temp = model.fit(training_sample)
+		
 		
 
 		return temp
@@ -337,13 +332,12 @@ rdd_train = rdd_train_x.join(rdd_train_y)
 #take 30 due to gc overhead
 
 
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(100)
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(10000)
 
 
 #piigy back the rdd intoder to main the flow same
 
-rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(100)
-
+rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(1000)
 
 
 
@@ -359,11 +353,12 @@ rdd_test = rdd_test.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
-df_train_original = df_train_orignal.sampleBy("key",sample_config)
+training = df_train_original.sampleBy("key",sample_config)
 
 testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
-training = df_train_original.randomSplit([0.4,0.6])[0]
-training = training.limit(200000)
+
+#print(training.count())
+#training = training.limit(200000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
@@ -402,8 +397,11 @@ print("now processing tf-idf");
 training = build_labels(training)
 
 
+
 training = training.repartition(5000)
 testing= testing.repartition(5000)
+
+
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
 #df_tfidf_test = df_tfidf_test.rdd.map(lambda l:[l[1],l[-1].toArray()])
 #df_tfidf_train= df_tfidf_train.rdd.map(lambda l:[l[1],l[-1].toArray()]).repartition(10000)
