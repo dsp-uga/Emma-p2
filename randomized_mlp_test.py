@@ -1,4 +1,3 @@
-
 from pyspark.sql import SQLContext
 from pyspark.ml.classification import *
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
@@ -28,10 +27,6 @@ conf = conf.set("spark.yarn.driver.memoryOverhea","5G")
 #conf.set("spark.driver.cores", 4)
 
 
-sample_config= 
-{5:0.4,7:0.4,4:0.4,6:0.4,9:0.9,8:0.4,1:0.4,2:0.4,3:0.3}
-
-
 sc = SparkContext(conf=conf)
 
 sqlContext = SQLContext(sc)
@@ -41,20 +36,48 @@ current_class = 0
 #.set("spark.executor.memory", "4g")
 
 
-layers = [100, 50,25,12,10,8,4, 2]
+layers = [100,80,60,40,20,10,5,2]
+
+def chain_sampler(dataset,limit):
+	training_sample_1=dataset.filter(df_tfidf_train.class_label==1).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_2=dataset.filter(df_tfidf_train.class_label==2).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_3=dataset.filter(df_tfidf_train.class_label==3).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_4=dataset.filter(df_tfidf_train.class_label==4).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_5=dataset.filter(df_tfidf_train.class_label==5).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_6=dataset.filter(df_tfidf_train.class_label==6).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_7=dataset.filter(df_tfidf_train.class_label==7).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_8=dataset.filter(df_tfidf_train.class_label==8).randomSplit([0.7,0.3])[0].limit(limit)
+	training_sample_9=dataset.filter(df_tfidf_train.class_label==9).randomSplit([0.7,0.3])[0].limit(limit)
+
+	training = training_sample_1.union(training_sample_2)
+	training = training.union(training_sample_3)
+	training = training.union(training_sample_4)
+	training = training.union(training_sample_5)
+	training = training.union(training_sample_6)
+	training = training.union(training_sample_7)
+	training = training.union(training_sample_8)
+	training = training.union(training_sample_9)
+	return training
+
+
+
+
+
+
+
 def intialize_model():
 
 	model = list();
 
-	model_0 = MultilayerPerceptronClassifier(maxIter=300,labelCol="one", layers=layers, blockSize=1, seed=123)
-	model_1 = MultilayerPerceptronClassifier(maxIter=300,labelCol="two", layers=layers, blockSize=1, seed=123)
-	model_2= MultilayerPerceptronClassifier(maxIter=300,labelCol="three", layers=layers, blockSize=1, seed=123)
-	model_3= MultilayerPerceptronClassifier(maxIter=300,labelCol="four", layers=layers, blockSize=1, seed=123)
-	model_4= MultilayerPerceptronClassifier(maxIter=300,labelCol="five", layers=layers, blockSize=1, seed=123)
-	model_5= MultilayerPerceptronClassifier(maxIter=300,labelCol="six", layers=layers, blockSize=1, seed=123)
-	model_6= MultilayerPerceptronClassifier(maxIter=300,labelCol="seven", layers=layers, blockSize=1, seed=123)
-	model_7= MultilayerPerceptronClassifier(maxIter=300,labelCol="eight", layers=layers, blockSize=1, seed=123)	
-	model_8= MultilayerPerceptronClassifier(maxIter=300,labelCol="nine", layers=layers, blockSize=1, seed=123)	
+	model_0 = MultilayerPerceptronClassifier(maxIter=5000,labelCol="one", layers=layers, blockSize=2, seed=123)
+	model_1 = MultilayerPerceptronClassifier(maxIter=5000,labelCol="two", layers=layers, blockSize=2, seed=123)
+	model_2= MultilayerPerceptronClassifier(maxIter=5000,labelCol="three", layers=layers, blockSize=2, seed=123)
+	model_3= MultilayerPerceptronClassifier(maxIter=5000,labelCol="four", layers=layers, blockSize=2, seed=123)
+	model_4= MultilayerPerceptronClassifier(maxIter=5000,labelCol="five", layers=layers, blockSize=2, seed=123)
+	model_5= MultilayerPerceptronClassifier(maxIter=5000,labelCol="six", layers=layers, blockSize=2, seed=123)
+	model_6= MultilayerPerceptronClassifier(maxIter=5000,labelCol="seven", layers=layers, blockSize=2, seed=123)
+	model_7= MultilayerPerceptronClassifier(maxIter=5000,labelCol="eight", layers=layers, blockSize=2, seed=123)	
+	model_8= MultilayerPerceptronClassifier(maxIter=5000,labelCol="nine", layers=layers, blockSize=2, seed=123)	
 
 	model.append(model_0)
 	model.append(model_1)
@@ -71,79 +94,70 @@ def intialize_model():
 	return model
 
 
-def update_model(old_model):
-	model = list()
-	model_0 = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="one", blockSize=1, seed=123)
-	model_0.setInitialWeights(old_model[0].weights)
-	model_1 = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="two", blockSize=1, seed=123)
-	model_1.setInitialWeights(old_model[1].weights)
-	model_2= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="three", blockSize=1, seed=123)
-	model_2.setInitialWeights(old_model[2].weights)
-	model_3= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="four", blockSize=1, seed=123)
-	model_3.setInitialWeights(old_model[3].weights)
-	model_4= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="five", blockSize=1, seed=123)
-	model_4.setInitialWeights(old_model[4].weights)
-	model_5= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="six", blockSize=1, seed=123)
-	model_5.setInitialWeights(old_model[5].weights)
-	model_6= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="seven", blockSize=1, seed=123)
-	model_6.setInitialWeights(old_model[6].weights)
-	model_7= MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol="eight", blockSize=1, seed=123)	
-	model_7.setInitialWeights(old_model[7].weights)
-	model_8= MultilayerPercsetInitialWeightseptronClassifier(maxIter=100, layers=layers,labelCol="nine", blockSize=1, seed=123)	
-	model_8.setInitialWeights(old_model[8].weights)
-
-	model.append(model_0)
-	model.append(model_1)
-	model.append(model_2)
-	model.append(model_3)
-	model.append(model_4)
-	model.append(model_5)
-	model.append(model_6)
-	model.append(model_7)
-	model.append(model_8)
-
-
-	return model
 
 
 
 
-split_train = 0.300
-limit =30000
+split_train = 0.900
+limit =60000
 
 
 
 
 
-def boosting(df_tfidf_train,model,labelCol):
+def boosting(df_tfidf_train,model,labelCol,index):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
+		temp = model.fit(training_sample)
+		
+		model = MultilayerPerceptronClassifier(maxIter=5000, layers=layers,labelCol=labelCol, blockSize=128, seed=123)
+		model.setInitialWeights(temp.weights)
+		print("performing boosting-0")
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
 		temp = model.fit(training_sample)
 
-		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		model = MultilayerPerceptronClassifier(maxIter=5000, layers=layers,labelCol=labelCol, blockSize=128, seed=123)
 		model.setInitialWeights(temp.weights)
-		print("iteration 2")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		print("performing boosting-1")
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
 		temp = model.fit(training_sample)
 
-		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		model = MultilayerPerceptronClassifier(maxIter=5000, layers=layers,labelCol=labelCol, blockSize=128, seed=123)
 		model.setInitialWeights(temp.weights)
-		print("iteration 3")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		print("performing boosting-2")
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
 		temp = model.fit(training_sample)
-
-		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		
+		model = MultilayerPerceptronClassifier(maxIter=5000, layers=layers,labelCol=labelCol, blockSize=128, seed=123)
 		model.setInitialWeights(temp.weights)
-		print("iteration 4")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		print("performing boosting-3")
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
 		temp = model.fit(training_sample)
-
-		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
+		
+		model = MultilayerPerceptronClassifier(maxIter=5000, layers=layers,labelCol=labelCol, blockSize=128, seed=123)
 		model.setInitialWeights(temp.weights)
-		print("iteration 5")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		print("performing boosting-4")
+		training_sample=df_tfidf_train.filter(df_tfidf_train.class_label==index).randomSplit([0.7,0.3])[0].limit(50000)
+		training_sample_1=df_tfidf_train.filter(df_tfidf_train.class_label!=index).randomSplit([0.7,0.3])[0].limit(50000)
+		#.sample(True,split_train,seed=42).limit(10000)
+		training_sample=training_sample.union(training_sample_1)
 		temp = model.fit(training_sample)
 		
 		
@@ -188,7 +202,9 @@ def prediction_and_label(model,dataset,class_label,validation=False):
 		evaluator = MulticlassClassificationEvaluator(
 		labelCol=class_label, predictionCol="prediction", metricName="accuracy")
 		accuracy = evaluator.evaluate(predictions)
+		print("------------------")
 		print("Class: "+ class_label + " Accuracy: "+str(accuracy))
+		print("------------------")
 		return accuracy,predictions.repartition(3000)
 	else:
 		return predictions.repartition(3000)
@@ -212,9 +228,11 @@ def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="feature
 
 
 
-def word2ved_processor(df):
-	wv_train =  Word2Vec(inputCol="text",outputCol="vector").setVectorSize(20)
+def word2ved_processor(df,text,features):
+	wv_train =  Word2Vec(inputCol=text,outputCol=features).setVectorSize(30)
+	print("building wor2vec model")
 	model = wv_train.fit(df)
+	print("word2vec transformation complete")
 	df = model.transform(df)
 	return df
 
@@ -321,7 +339,7 @@ parser.add_argument( '-b','--train_y' ,help='training y set')
 parser.add_argument('-c','--test_x', type=str,
                     help='testing x set')
 #parser.add_argument('-d','--test_y', type=str,
-#                    help='testing y set')
+                    #help='testing y set')
 parser.add_argument('-e','--path', type=str,
                     help='path to folder')
 
@@ -334,7 +352,13 @@ output_path = args['output']
 rdd_train_x = sc.textFile(args['train_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
 rdd_train_y = sc.textFile(args['train_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
 rdd_test = sc.textFile(args['test_x']).zipWithIndex().map(lambda l:(l[1],l[0]))
+#rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]),l[0]));
 rdd_train = rdd_train_x.join(rdd_train_y)
+
+
+
+
+#rdd_test = sc.parallelize(rdd_test)
 #rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(float(l[1]-1),l[0]));
 #rdd_train = rdd_train_x.join(rdd_train_y)#.take(2)
 
@@ -343,12 +367,14 @@ rdd_train = rdd_train_x.join(rdd_train_y)
 #take 30 due to gc overhead
 
 
-rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(10000)
+rdd_train = rdd_train.flatMap(lambda l :fetch_url(l,args['path'])).map(lambda l:clean(l)).filter(lambda l:l !=None).repartition(1000)
+
+rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(1000)
 
 
 #piigy back the rdd intoder to main the flow same
 
-rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(1000)
+#rdd_test = rdd_test.flatMap(lambda l :fetch_url_testing(l,args['path'])).map(lambda l:clean_test(l)).filter(lambda l:l !=None).repartition(1000)
 
 
 
@@ -363,20 +389,22 @@ rdd_test = rdd_test.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 
-df_train_original = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
-training = df_train_original.sampleBy("key",sample_config)
+training = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"]).randomSplit([0.8,0.2])[0]
+testing = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
 
-testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
+
+
+#testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"]).randomSplit([0.7,0.3])[0]
+
 
 #print(training.count())
-#training = training.limit(200000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
 #df_train_original = df_train_original.repartition(10000)
-	#df_test_original = df_test_original.repartition(30000) 
+#df_test_original = df_test_original.repartition(30000) 
 
-	#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
+#df_train_orignal ,df_train_orignal_validate =df_train_orignal.randomSplit([0.7,0.3])
 
 
 #df_train_original.printSchema()
@@ -402,15 +430,21 @@ testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"])
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
+
+
+#testing = word2ved_processor(testing,"text","features")
+#training = word2vec_processor(testing,"text","features")
+
 training = tfidf_processor(training,"text","features")
 testing = tfidf_processor(testing,"text","features")
 print("now processing tf-idf");
 training = build_labels(training)
+testing = build_labels(testing)
 
 
 
-training = training.repartition(5000)
-testing= testing.repartition(5000)
+#training = training.repartition(5000)
+#testing= testing.repartition(5000)
 
 
 #df_tfidf_test = tfidf_processor(df_test_original,"text","tfidf_vector");
@@ -433,36 +467,43 @@ testing= testing.repartition(5000)
 
 model_list = intialize_model()
 
+
+
 print("Model 1")
-model_list[0]= boosting(training,model_list[0],"one")
-print("Model 2")
-model_list[1]= boosting(training,model_list[1],"two")
+model_list[0]= boosting(training,model_list[0],"one",1)
+
+
+model_list[1]= boosting(training,model_list[1],"two",2)
 print("Model 3")
-model_list[2]= boosting(training,model_list[2],"three")
+model_list[2]= boosting(training,model_list[2],"three",3)
 print("Model 4")
-model_list[3]= boosting(training,model_list[3],"four")
+model_list[3]= boosting(training,model_list[3],"four",4)
 print("Model 5")
-model_list[4]= boosting(training,model_list[4],"five")
+model_list[4]= boosting(training,model_list[4],"five",5)
 print("Model 6")
-model_list[5]= boosting(training,model_list[5],"six")
+model_list[5]= boosting(training,model_list[5],"six",6)
 print("Model 7")
-model_list[6]= boosting(training,model_list[6],"seven")
+model_list[6]= boosting(training,model_list[6],"seven",7)
 print("Model 8")
-model_list[7]= boosting(training,model_list[7],"eight")
+model_list[7]= boosting(training,model_list[7],"eight",8)
 print("Model 9")
-model_list[8]= boosting(training,model_list[8],"nine")
+model_list[8]= boosting(training,model_list[8],"nine",9)
+print("Model 2")
 
-training.unpersist();
 
-prediction_1  =prediction_and_label(model_list[0],testing,"one")
-prediction_2  = prediction_and_label(model_list[1],testing,"two")
-prediction_3 = prediction_and_label(model_list[2],testing,"three")
-prediction_4  = prediction_and_label(model_list[3],testing,"four")
-prediction_5  = prediction_and_label(model_list[4],testing,"five")
-prediction_6  = prediction_and_label(model_list[5],testing,"six")
-prediction_7  = prediction_and_label(model_list[6],testing,"seven")
-prediction_8 = prediction_and_label(model_list[7],testing,"eight")
-prediction_9 = prediction_and_label(model_list[8],testing,"nine")
+prediction_1= prediction_and_label(model_list[0],testing,"one")
+prediction_2=prediction_and_label(model_list[1],testing,"two")
+prediction_3=prediction_and_label(model_list[2],testing,"three")
+prediction_4=prediction_and_label(model_list[3],testing,"four")
+prediction_5=prediction_and_label(model_list[4],testing,"five")
+prediction_6=prediction_and_label(model_list[5],testing,"six")
+prediction_7=prediction_and_label(model_list[6],testing,"seven")
+prediction_8=prediction_and_label(model_list[7],testing,"eight")
+prediction_9=prediction_and_label(model_list[8],testing,"nine")
+
+
+
+
 
 prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
 prediction_2  = prediction_2.withColumn("predictions", col("prediction").cast("int"))
