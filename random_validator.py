@@ -36,7 +36,7 @@ current_class = 0
 #.set("spark.executor.memory", "4g")
 
 
-layers = [100,75,50,25,12,6,2]
+layers = [30,20,15,10,5,3,2,1]
 def intialize_model():
 
 	model = list();
@@ -81,13 +81,15 @@ def boosting(df_tfidf_train,model,labelCol):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		
 		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 2")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		'''
 		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
@@ -177,8 +179,10 @@ def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="feature
 
 
 def word2ved_processor(df,text,features):
-	wv_train =  Word2Vec(inputCol=text,outputCol=features).setVectorSize(100)
+	wv_train =  Word2Vec(inputCol=text,outputCol=features).setVectorSize(30)
+	print("building wor2vec model")
 	model = wv_train.fit(df)
+	print("word2vec transformation complete")
 	df = model.transform(df)
 	return df
 
@@ -336,7 +340,7 @@ rdd_test = rdd_test.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
 
 
-training = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"]).randomSplit([0.7,0.3])[0	]
+training = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"]).randomSplit([0.7,0.3])[0].limit(200000)
 testing = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key"])
 
 
@@ -345,7 +349,6 @@ testing = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key
 
 
 #print(training.count())
-training =training.limit(200000)
 
 
 #df_test_original = sqlContext.createDataFrame(rdd_test,schema=["text","class_label"])
@@ -380,11 +383,11 @@ training =training.limit(200000)
 
 
 
-testing = word2ved_processor(testing,"text","features")
-training = word2vec_processor(testing,"text","features")
+#testing = word2ved_processor(testing,"text","features")
+#training = word2vec_processor(testing,"text","features")
 
-#training = tfidf_processor(training,"text","features")
-#testing = tfidf_processor(testing,"text","features")
+training = tfidf_processor(training,"text","features")
+testing = tfidf_processor(testing,"text","features")
 print("now processing tf-idf");
 training = build_labels(training)
 testing = build_labels(testing)
