@@ -36,20 +36,20 @@ current_class = 0
 #.set("spark.executor.memory", "4g")
 
 
-layers = [100, 50,25,12,10,8,4, 2]
+layers = [100,75,50,25,12,6,2]
 def intialize_model():
 
 	model = list();
 
-	model_0 = MultilayerPerceptronClassifier(maxIter=100,labelCol="one", layers=layers, blockSize=1, seed=123)
-	model_1 = MultilayerPerceptronClassifier(maxIter=100,labelCol="two", layers=layers, blockSize=1, seed=123)
-	model_2= MultilayerPerceptronClassifier(maxIter=100,labelCol="three", layers=layers, blockSize=1, seed=123)
-	model_3= MultilayerPerceptronClassifier(maxIter=100,labelCol="four", layers=layers, blockSize=1, seed=123)
-	model_4= MultilayerPerceptronClassifier(maxIter=100,labelCol="five", layers=layers, blockSize=1, seed=123)
-	model_5= MultilayerPerceptronClassifier(maxIter=100,labelCol="six", layers=layers, blockSize=1, seed=123)
-	model_6= MultilayerPerceptronClassifier(maxIter=100,labelCol="seven", layers=layers, blockSize=1, seed=123)
-	model_7= MultilayerPerceptronClassifier(maxIter=100,labelCol="eight", layers=layers, blockSize=1, seed=123)	
-	model_8= MultilayerPerceptronClassifier(maxIter=100,labelCol="nine", layers=layers, blockSize=1, seed=123)	
+	model_0 = MultilayerPerceptronClassifier(maxIter=300,labelCol="one", layers=layers, blockSize=2, seed=123)
+	model_1 = MultilayerPerceptronClassifier(maxIter=300,labelCol="two", layers=layers, blockSize=2, seed=123)
+	model_2= MultilayerPerceptronClassifier(maxIter=300,labelCol="three", layers=layers, blockSize=2, seed=123)
+	model_3= MultilayerPerceptronClassifier(maxIter=300,labelCol="four", layers=layers, blockSize=2, seed=123)
+	model_4= MultilayerPerceptronClassifier(maxIter=100,labelCol="five", layers=layers, blockSize=2, seed=123)
+	model_5= MultilayerPerceptronClassifier(maxIter=100,labelCol="six", layers=layers, blockSize=2, seed=123)
+	model_6= MultilayerPerceptronClassifier(maxIter=100,labelCol="seven", layers=layers, blockSize=2, seed=123)
+	model_7= MultilayerPerceptronClassifier(maxIter=100,labelCol="eight", layers=layers, blockSize=2, seed=123)	
+	model_8= MultilayerPerceptronClassifier(maxIter=100,labelCol="nine", layers=layers, blockSize=2, seed=123)	
 
 	model.append(model_0)
 	model.append(model_1)
@@ -71,7 +71,7 @@ def intialize_model():
 
 
 split_train = 0.300
-limit =30000
+limit =60000
 
 
 
@@ -176,8 +176,8 @@ def count_vectorizer_processor(df,inputCol="merge_text_array",outputCol="feature
 
 
 
-def word2ved_processor(df):
-	wv_train =  Word2Vec(inputCol="text",outputCol="vector").setVectorSize(20)
+def word2ved_processor(df,text,features):
+	wv_train =  Word2Vec(inputCol=text,outputCol=features).setVectorSize(100)
 	model = wv_train.fit(df)
 	df = model.transform(df)
 	return df
@@ -343,6 +343,7 @@ testing = sqlContext.createDataFrame(rdd_train,schema=["text","class_label","key
 
 #testing = sqlContext.createDataFrame(rdd_test,schema=["key","text"]).randomSplit([0.7,0.3])[0]
 
+
 #print(training.count())
 training =training.limit(200000)
 
@@ -377,8 +378,13 @@ training =training.limit(200000)
 #df_train_vectorizer = count_vectorizer_processor(df_train_ngram,"merge_text_array")
 #df_test_vectorizer = count_vectorizer_processor(df_test_ngram,"merge_text_array")
 
-training = tfidf_processor(training,"text","features")
-testing = tfidf_processor(testing,"text","features")
+
+
+testing = word2ved_processor(testing,"text","features")
+training = word2vec_processor(testing,"text","features")
+
+#training = tfidf_processor(training,"text","features")
+#testing = tfidf_processor(testing,"text","features")
 print("now processing tf-idf");
 training = build_labels(training)
 testing = build_labels(testing)
@@ -430,15 +436,15 @@ print("Model 9")
 model_list[8]= boosting(training,model_list[8],"nine")
 print("Model 2")
 
-testing_1 = testing.sample(False,0.3,seed=42)
+testing_1 = testing.sample(False,0.7,seed=42)
 
-testing_2 = testing.sample(False,0.3,seed=42)
+testing_2 = testing.sample(False,0.7,seed=42)
 
-testing_3 = testing.sample(False,0.3,seed=42)
+testing_3 = testing.sample(False,0.7,seed=42)
 
-testing_4 = testing.sample(False,0.3,seed=42)
+testing_4 = testing.sample(False,0.7,seed=42)
 
-testing_5 = testing.sample(False,0.3,seed=42)
+testing_5 = testing.sample(False,0.7,seed=42)
 
 
 prediction_and_label(model_list[0],testing_1,"one",validation=True)
@@ -452,46 +458,46 @@ prediction_and_label(model_list[7],testing_1,"eight",validation=True)
 prediction_and_label(model_list[8],testing_1,"nine",validation=True)
 
 
-prediction_and_label(model_list[0],testing_2,"one")
-prediction_and_label(model_list[1],testing_2,"two")
-prediction_and_label(model_list[2],testing_2,"three")
-prediction_and_label(model_list[3],testing_2,"four")
-prediction_and_label(model_list[4],testing_2,"five")
-prediction_and_label(model_list[5],testing_2,"six")
-prediction_and_label(model_list[6],testing_2,"seven")
-prediction_and_label(model_list[7],testing_2,"eight")
-prediction_and_label(model_list[8],testing_2,"nine")
+prediction_and_label(model_list[0],testing_2,"one",validation=True)
+prediction_and_label(model_list[1],testing_2,"two",validation=True)
+prediction_and_label(model_list[2],testing_2,"three",validation=True)
+prediction_and_label(model_list[3],testing_2,"four",validation=True)
+prediction_and_label(model_list[4],testing_2,"five",validation=True)
+prediction_and_label(model_list[5],testing_2,"six",validation=True)
+prediction_and_label(model_list[6],testing_2,"seven",validation=True)
+prediction_and_label(model_list[7],testing_2,"eight",validation=True)
+prediction_and_label(model_list[8],testing_2,"nine",validation=True)
 
-prediction_and_label(model_list[0],testing_3,"one")
-prediction_and_label(model_list[1],testing_3,"two")
-prediction_and_label(model_list[2],testing_3,"three")
-prediction_and_label(model_list[3],testing_3,"four")
-prediction_and_label(model_list[4],testing_3,"five")
-prediction_and_label(model_list[5],testing_3,"six")
-prediction_and_label(model_list[6],testing_3,"seven")
-prediction_and_label(model_list[7],testing_3,"eight")
-prediction_and_label(model_list[8],testing_3,"nine")
+prediction_and_label(model_list[0],testing_3,"one",validation=True)
+prediction_and_label(model_list[1],testing_3,"two",validation=True)
+prediction_and_label(model_list[2],testing_3,"three",validation=True)
+prediction_and_label(model_list[3],testing_3,"four",validation=True)
+prediction_and_label(model_list[4],testing_3,"five",validation=True)
+prediction_and_label(model_list[5],testing_3,"six",validation=True)
+prediction_and_label(model_list[6],testing_3,"seven",validation=True)
+prediction_and_label(model_list[7],testing_3,"eight",validation=True)
+prediction_and_label(model_list[8],testing_3,"nine",validation=True)
 
 
-prediction_and_label(model_list[0],testing_4,"one")
-prediction_and_label(model_list[1],testing_4,"two")
-prediction_and_label(model_list[2],testing_4,"three")
-prediction_and_label(model_list[3],testing_4,"four")
-prediction_and_label(model_list[4],testing_4,"five")
-prediction_and_label(model_list[5],testing_4,"six")
-prediction_and_label(model_list[6],testing_4,"seven")
-prediction_and_label(model_list[7],testing_4,"eight")
-prediction_and_label(model_list[8],testing_4,"nine")
+prediction_and_label(model_list[0],testing_4,"one",validation=True)
+prediction_and_label(model_list[1],testing_4,"two",validation=True)
+prediction_and_label(model_list[2],testing_4,"three",validation=True)
+prediction_and_label(model_list[3],testing_4,"four",validation=True)
+prediction_and_label(model_list[4],testing_4,"five",validation=True)
+prediction_and_label(model_list[5],testing_4,"six",validation=True)
+prediction_and_label(model_list[6],testing_4,"seven",validation=True)
+prediction_and_label(model_list[7],testing_4,"eight",validation=True)
+prediction_and_label(model_list[8],testing_4,"nine",validation=True)
 
-prediction_and_label(model_list[0],testing_5,"one")
-prediction_and_label(model_list[1],testing_5,"two")
-prediction_and_label(model_list[2],testing_5,"three")
-prediction_and_label(model_list[3],testing_5,"four")
-prediction_and_label(model_list[4],testing_5,"five")
-prediction_and_label(model_list[5],testing_5,"six")
-prediction_and_label(model_list[6],testing_5,"seven")
-prediction_and_label(model_list[7],testing_5,"eight")
-prediction_and_label(model_list[8],testing_5,"nine")
+prediction_and_label(model_list[0],testing_5,"one",validation=True)
+prediction_and_label(model_list[1],testing_5,"two",validation=True)
+prediction_and_label(model_list[2],testing_5,"three",validation=True)
+prediction_and_label(model_list[3],testing_5,"four",validation=True)
+prediction_and_label(model_list[4],testing_5,"five",validation=True)
+prediction_and_label(model_list[5],testing_5,"six",validation=True)
+prediction_and_label(model_list[6],testing_5,"seven",validation=True)
+prediction_and_label(model_list[7],testing_5,"eight",validation=True)
+prediction_and_label(model_list[8],testing_5,"nine",validation=True)
 """
 
 prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
