@@ -32,11 +32,7 @@ a. Set the Pyspark properties to use optimal resources of the clusters: Setting 
 b. Use of Collect: collecting the data at the right time helped a lot to reduce the executor memory overload issues. 
 c. Storing the data on the memory and disk: This option helped to process the data offline.
 d. Repartitioning: Repartitioning RDDs were the final weapon, which helped us to remove all the memory overhead issues. Repartitioning RDD to 500 partition, helped to cope up with frequent memory failiours. 
-   
-TODO: Prajay, Hiten : to add something if any.
-
-
-
+ 
 
 # CodeBase:
 1. Datafiles: There are two sets of data files.
@@ -46,7 +42,18 @@ TODO: Prajay, Hiten : to add something if any.
 
 
 NOTE: Here, because we didn't want to change the code for all the datasets, we created y_test.txt files with all '1's for the number of files in X_test.txt file.
-  c. TODO : Prajay and Hiten to udpate.
+  
+#Using Google CLoud
+
+Data Storage- where main python file is saved along with sample data
+
+DataProc- Creating a cluster and submitting a job
+
+Before creating a cluster make sure a billing account is added to that project. Open Google Cloud consloe--Billing--add billing details.
+
+Create a cluster-gcloud dataproc clusters create cluster-name Manually set master and worker configuration by using GCP console.
+
+Setting up a Job: gcloud dataproc jobs submit spark --cluster cluster-name -mainpthonfile.py-arguments
 
 # Contributors:
 Prajay - 
@@ -57,7 +64,7 @@ Line wise prediction: Predicted the classificaiton via line not based on files a
 
 All the code is available under mlp branch
 
-Hiten - TODO: Hiten would update.
+Hiten - Implementation of Naive-Bayes, Random Forest in DataFrame /Pipeline, Analysis, processing of data, Google CLoud
 
 Maulik - Implementation of the Naive-Bayes,preprocessing,performance tuning and documentation. 
 
@@ -83,5 +90,3 @@ https://jaceklaskowski.gitbooks.io/mastering-apache-spark/spark-webui-StagePage.
 http://blog.cloudera.com/blog/2015/03/how-to-tune-your-apache-spark-jobs-part-2/
 https://stackoverflow.com/questions/32336915/pyspark-java-lang-outofmemoryerror-java-heap-space
 https://community.hortonworks.com/articles/80301/spark-configuration-and-best-practice-advice.html
-
-TODO: Hiten to Add
