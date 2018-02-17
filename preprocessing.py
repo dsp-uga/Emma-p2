@@ -83,14 +83,15 @@ def clean_data(data_row):
 #Create the Spark Config and Context.
 conf = SparkConf().setAppName('P2MalewareClassification')
 
-conf =conf.set('spark.driver.memory', '8g')
-conf =conf.set('spark.executor.memory', '8g')
+conf =conf.set('spark.driver.memory', '15g')
+conf =conf.set('spark.executor.memory', '10g')
 conf =conf.set('spark.driver.cores', '4')
-conf =conf.set('spark.executor.cores', '4')
+conf =conf.set('spark.executor.cores', '6')
 conf =conf.set('spark.python.worker.memory', '4g')
 conf =conf.set('spark.yarn.am.memoryOverhead', '1g')
 conf =conf.set('spark.yarn.driver.memoryOverhead', '2g')
 conf =conf.set('spark.yarn.executor.memoryOverhead', '2g')
+conf =conf.set('spark.driver.maxResultSize', '6g')
 
 sc = SparkContext.getOrCreate(conf=conf)
 #Create SQL context.
@@ -123,7 +124,11 @@ rdd_test_y = sc.textFile(args['test_y']).zipWithIndex().map(lambda l:(l[1],l[0])
 rdd_train = rdd_train_x.join(rdd_train_y)
 #Join by zip-index to create a merged set. 
 rdd_test = rdd_test_x.join(rdd_test_y)
-
+#Sample from the large data for training.
+rdd_train,rdd_discard = rdd_train.randomSplit([0.6, 0.4])
+#Repartition the RDDs.
+rdd_train = rdd_train.repartition(500)
+rdd_test = rdd_test.repartition(500)
 #Get the  file list files. 
 #Fetch the data.
 #Clean the Byte file of redundant information.
@@ -132,7 +137,10 @@ rdd_test = rdd_test_x.join(rdd_test_y)
 #Keep the labels and byte file only. 
 rdd_train_text = rdd_train.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_train).map(lambda l: (int(l[1][1][1]) ,l[1][0]))
 rdd_test_text = rdd_test.map(fetch_url).map(clean_data).zipWithIndex().map(lambda l: (l[1],l[0])).join(rdd_test).map(lambda l: (int(l[1][1][1]) ,l[1][0]))
-
+#Repartitioning the data again.
+rdd_train_text = rdd_train_text.repartition(500)
+rdd_test_text = rdd_test_text.repartition(500)
+#Save to memory and disk.
 rdd_train_text = rdd_train_text.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 rdd_test_text = rdd_test_text.persist(pyspark.StorageLevel.MEMORY_AND_DISK)
 
