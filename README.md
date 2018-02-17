@@ -48,9 +48,11 @@ TODO: Prajay, Hiten : to add something if any.
 NOTE: Here, because we didn't want to change the code for all the datasets, we created y_test.txt files with all '1's for the number of files in X_test.txt file.
   c. TODO : Prajay and Hiten to udpate.
 
-#Contributors:
+# Contributors:
 Prajay - TODO: Prajay would update.
+
 Hiten - TODO: Hiten would update.
+
 Maulik - Implementation of the Naive-Bayes,preprocessing,performance tuning and documentation. 
 
 # Future Works:
