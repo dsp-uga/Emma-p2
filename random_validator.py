@@ -80,24 +80,24 @@ def boosting(df_tfidf_train,model,labelCol):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
-		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
+		training_sample=df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		
 		model = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol=labelCol)
 		model.coefficients = temp.coefficients
 		model.intercept = temp.intercept
 		print("iteration 2")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
-		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
+		training_sample=df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 
 		model = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol=labelCol)
 		model.coefficients = temp.coefficients
 		model.intercept = temp.intercept
 		print("iteration 2")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
-		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
+		training_sample=df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(True,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		'''
 		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
