@@ -49,7 +49,13 @@ NOTE: Here, because we didn't want to change the code for all the datasets, we c
   c. TODO : Prajay and Hiten to udpate.
 
 # Contributors:
-Prajay - TODO: Prajay would update.
+Prajay - 
+Cross Validation: Implemented random based Cross validator 
+MLP :Implemented random mlp  and randomized Logistic regression
+Hashing TF: Used hashing tf for feature extraction
+Line wise prediction: Predicted the classificaiton via line not based on files and then converted to file space (Embedding)
+
+All the code is available under mlp branch
 
 Hiten - TODO: Hiten would update.
 
@@ -57,6 +63,7 @@ Maulik - Implementation of the Naive-Bayes,preprocessing,performance tuning and 
 
 # Future Works:
 Implement N-grams in efficient way into the pipeline to update efficiency. Check if the Naive-bayes is bug free or not.
+Implement full version of code and make it bug free and retest on large dataset
 
 
 # References
@@ -77,4 +84,4 @@ http://blog.cloudera.com/blog/2015/03/how-to-tune-your-apache-spark-jobs-part-2/
 https://stackoverflow.com/questions/32336915/pyspark-java-lang-outofmemoryerror-java-heap-space
 https://community.hortonworks.com/articles/80301/spark-configuration-and-best-practice-advice.html
 
-TODO: Prajay and Hiten to add. 
+TODO: Hiten to Add
