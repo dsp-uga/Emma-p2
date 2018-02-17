@@ -8,7 +8,7 @@ The end goal of this project is to classify Malewares into 9 different categorie
 All the training for the large data sets are done on the google cloud Dataproc APIs, which are available through education funds given for this class only.
 
 
-#Methodology 
+# Methodology 
 There are few approaches we used for creating a model, which are Naive Bayes, Random Forest,Deep Neural Networks and Logistic regression,etc. 
 1. Pre-processing: Overall the task is to clean the data by removing extra 00s and CCs, remove new lines, return feeds and extra white spaces. There are two different approaches we took for preprocessing the data:
   a. File based approach: Treat file as a document(NLP term) and process it likewise.
@@ -38,7 +38,7 @@ TODO: Prajay, Hiten : to add something if any.
 
 
 
-#CodeBase:
+# CodeBase:
 1. Datafiles: There are two sets of data files.
   a. FileNames and Labels: Each line in this files contain either a file name or a lable. They are being put in the 'small' folder for reference. For fetching it into the program, any web locaiton can be passed in the arguments. 
   b. NaiveBayes: The naiveBayes.py file contains consolidated code for preprocessing and modeling for this approach. The file can be run as : 
@@ -51,16 +51,17 @@ Prajay - TODO: Prajay would update.
 Hiten - TODO: Hiten would update.
 Maulik - Implementation of the Naive-Bayes,preprocessing,performance tuning and documentation. 
 
-#Future Works:
+# Future Works:
 Implement N-grams in efficient way into the pipeline to update efficiency. Check if the Naive-bayes is bug free or not.
 
 
-#References
+# References
 http://spark.apache.org/docs/2.1.0/api/python/pyspark.html
 https://spark.apache.org/docs/2.2.0/ml-features.html
 https://spark.apache.org/docs/latest/sql-programming-guide.html#datasets-and-dataframes
 https://spark.apache.org/docs/2.2.0/api/python/pyspark.ml.html#
 https://spark.apache.org/docs/latest/ml-guide.html
+https://spark.apache.org/docs/latest/configuration.html
 
 https://web.stanford.edu/class/cs124/lec/naivebayes.pdf
 
@@ -69,5 +70,7 @@ https://www.hackingnote.com/en/spark/trouble-shooting/total-size-is-bigger-than-
 https://databricks-prod-cloudfront.cloud.databricks.com/public/4027ec902e239c93eaaa8714f173bcfc/3741049972324885/3783546674231736/4413065072037724/latest.html
 https://jaceklaskowski.gitbooks.io/mastering-apache-spark/spark-webui-StagePage.html
 http://blog.cloudera.com/blog/2015/03/how-to-tune-your-apache-spark-jobs-part-2/
+https://stackoverflow.com/questions/32336915/pyspark-java-lang-outofmemoryerror-java-heap-space
+https://community.hortonworks.com/articles/80301/spark-configuration-and-best-practice-advice.html
 
 TODO: Prajay and Hiten to add. 
