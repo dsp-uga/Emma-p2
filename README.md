@@ -42,7 +42,7 @@ TODO: Prajay, Hiten : to add something if any.
 1. Datafiles: There are two sets of data files.
   a. FileNames and Labels: Each line in this files contain either a file name or a lable. They are being put in the 'small' folder for reference. For fetching it into the program, any web locaiton can be passed in the arguments. 
   b. NaiveBayes: The naiveBayes.py file contains consolidated code for preprocessing and modeling for this approach. The file can be run as : 
- >spark-submit <<path-to-file>>/naiveBayes.py -a<<path-to-file-location>>/X_train.txt -b<<path-to-file-location>>/y_train.txt -c<<path-to-file-location>>/X_test.txt -d<<path-to-file-location>>/y_test.txt -ehttps://storage.googleapis.com/uga-dsp/project2/data/bytes 
+ --spark-submit PATH_TO_FILE/naiveBayes.py -aPATH_TO_FILE/X_train.txt -bPATH_TO_FILE/y_train.txt -cPATH_TO_FILE/X_test.txt -dPATH_TO_FILE/y_test.txt -ehttps://storage.googleapis.com/uga-dsp/project2/data/bytes 
 
 
 NOTE: Here, because we didn't want to change the code for all the datasets, we created y_test.txt files with all '1's for the number of files in X_test.txt file.
