@@ -1,3 +1,4 @@
+
 from pyspark.sql import SQLContext
 from pyspark.ml.classification import *
 from pyspark.ml.evaluation import MulticlassClassificationEvaluator
@@ -35,21 +36,19 @@ current_class = 0
 
 #.set("spark.executor.memory", "4g")
 
-
-layers = [30,20,15,10,5,3,2,1]
 def intialize_model():
 
 	model = list();
-
-	model_0 = MultilayerPerceptronClassifier(maxIter=300,labelCol="one", layers=layers, blockSize=2, seed=123)
-	model_1 = MultilayerPerceptronClassifier(maxIter=300,labelCol="two", layers=layers, blockSize=2, seed=123)
-	model_2= MultilayerPerceptronClassifier(maxIter=300,labelCol="three", layers=layers, blockSize=2, seed=123)
-	model_3= MultilayerPerceptronClassifier(maxIter=300,labelCol="four", layers=layers, blockSize=2, seed=123)
-	model_4= MultilayerPerceptronClassifier(maxIter=100,labelCol="five", layers=layers, blockSize=2, seed=123)
-	model_5= MultilayerPerceptronClassifier(maxIter=100,labelCol="six", layers=layers, blockSize=2, seed=123)
-	model_6= MultilayerPerceptronClassifier(maxIter=100,labelCol="seven", layers=layers, blockSize=2, seed=123)
-	model_7= MultilayerPerceptronClassifier(maxIter=100,labelCol="eight", layers=layers, blockSize=2, seed=123)	
-	model_8= MultilayerPerceptronClassifier(maxIter=100,labelCol="nine", layers=layers, blockSize=2, seed=123)	
+	
+	model_0 = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="one")
+	model_1 = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="two")
+	model_2= LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="three")
+	model_3=LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="four")
+	model_4=LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="five")
+	model_5= LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="six")
+	model_6=LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="seven")
+	model_7= LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="eight")
+	model_8=LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol="nine")
 
 	model.append(model_0)
 	model.append(model_1)
@@ -81,15 +80,24 @@ def boosting(df_tfidf_train,model,labelCol):
 		accuracy = [0 for i in range(0,8)]
 
 		print("performing boosting")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label==labelCol).limit(10000)
-		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label!=labelCol).limit(10000))
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		
-		model = MultilayerPerceptronClassifier(maxIter=100, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
-		model.setInitialWeights(temp.weights)
+		model = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol=labelCol)
+		model.coefficients = temp.coefficients
+		model.intercept = temp.intercept
 		print("iteration 2")
-		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label==labelCol).limit(10000)
-		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.label!=labelCol).limit(10000))
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
+		temp = model.fit(training_sample)
+
+		model = LogisticRegression(maxIter=100, regParam=0.3, elasticNetParam=0.8,labelCol=labelCol)
+		model.coefficients = temp.coefficients
+		model.intercept = temp.intercept
+		print("iteration 2")
+		training_sample=df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label==labelCol).limit(10000)
+		training_sample=training_sample.union(df_tfidf_train.sample(False,split_train,seed=42).filter(df_tfidf_train.class_label!=labelCol).limit(10000))
 		temp = model.fit(training_sample)
 		'''
 		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
@@ -97,13 +105,11 @@ def boosting(df_tfidf_train,model,labelCol):
 		print("iteration 3")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training_sample)
-
 		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 4")
 		training_sample=df_tfidf_train.sample(False,split_train,seed=42).limit(limit)
 		temp = model.fit(training_sample)
-
 		model = MultilayerPerceptronClassifier(maxIter=300, layers=layers,labelCol=labelCol, blockSize=1, seed=123)
 		model.setInitialWeights(temp.weights)
 		print("iteration 5")
@@ -439,15 +445,15 @@ print("Model 9")
 model_list[8]= boosting(training,model_list[8],"nine")
 print("Model 2")
 
-testing_1 = testing.sample(False,0.7,seed=42)
+testing_1 = testing.sample(True,0.7,seed=42)
 
-testing_2 = testing.sample(False,0.7,seed=42)
+testing_2 = testing.sample(True,0.7,seed=42)
 
-testing_3 = testing.sample(False,0.7,seed=42)
+testing_3 = testing.sample(True,0.7,seed=42)
 
-testing_4 = testing.sample(False,0.7,seed=42)
+testing_4 = testing.sample(True,0.7,seed=42)
 
-testing_5 = testing.sample(False,0.7,seed=42)
+testing_5 = testing.sample(True,0.7,seed=42)
 
 
 prediction_and_label(model_list[0],testing_1,"one",validation=True)
@@ -502,7 +508,6 @@ prediction_and_label(model_list[6],testing_5,"seven",validation=True)
 prediction_and_label(model_list[7],testing_5,"eight",validation=True)
 prediction_and_label(model_list[8],testing_5,"nine",validation=True)
 """
-
 prediction_1  = prediction_1.withColumn("predictions", col("prediction").cast("int"))
 prediction_2  = prediction_2.withColumn("predictions", col("prediction").cast("int"))
 prediction_3  = prediction_3.withColumn("predictions", col("prediction").cast("int"))
@@ -512,8 +517,6 @@ prediction_6  = prediction_6.withColumn("predictions", col("prediction").cast("i
 prediction_7  = prediction_7.withColumn("predictions", col("prediction").cast("int"))
 prediction_8  = prediction_8.withColumn("predictions", col("prediction").cast("int"))
 prediction_9  = prediction_9.withColumn("predictions", col("prediction").cast("int"))
-
-
 prediction_1 = prediction_1.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_1')
 prediction_2 = prediction_2.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_2')
 prediction_3 = prediction_3.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_3')
@@ -523,9 +526,6 @@ prediction_6 = prediction_6.groupBy("key").sum("predictions").withColumnRenamed(
 prediction_7 = prediction_7.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_7')
 prediction_8 = prediction_8.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_8')
 prediction_9 = prediction_9.groupBy("key").sum("predictions").withColumnRenamed('sum(predictions)', 'prediction_9')
-
-
-
 prediction = prediction_1.join(prediction_2,prediction_1.key==prediction_2.key).drop(prediction_2.key)
 prediction = prediction.join(prediction_3,prediction.key==prediction_3.key).drop(prediction_3.key)
 prediction = prediction.join(prediction_4,prediction.key==prediction_4.key).drop(prediction_4.key)
@@ -535,10 +535,7 @@ prediction = prediction.join(prediction_7,prediction.key==prediction_7.key).drop
 prediction = prediction.join(prediction_8,prediction.key==prediction_8.key).drop(prediction_8.key)
 prediction = prediction.join(prediction_9,prediction.key==prediction_9.key).drop(prediction_9.key)
 prediction.show();
-
-
 output = prediction.rdd.coalesce(1).map(toCSVLine)
 output.saveAsTextFile(output_path)
-
 #prediction = prediction.join(prediction_3,prediction.key==prediction_3.key).select(prediction["key"],"prediction_1","prediction_2","prediction_3")
 """
