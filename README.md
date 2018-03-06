@@ -24,9 +24,9 @@ There are few approaches we used for creating a model, which are Naive Bayes, Ra
 3. Models: The models and their performance is as below:
    a. Naive Bayes: After a lot of hardwork, we were able to train 60% of training data in 30 minutes on google cloud, but the problem with this approach is lack of accuracy. 
    Potential Bugs: The model predicts everything as label 3, which is the largest class in the corpus. 
-   b. Deep Neural Nets: TODO: Prajay to update this.
+   b. Deep Neural Nets: The nerual networks were trained to randomly select 8 Lakh lines of  dataset for each classes from the dataset of 1TB files. The dataset are then sampled again and again at each iteration , effectively reducing the need of the nerual network to train on large dataset  or 1TB dataset. The method can also be applied for CNN while training images.
    c. Ramdom Forest: TODO: Hiten to update this.
-   d. Logistic Regression: TODO: Prajay to update this.
+   d. Logistic Regression: The method of sampling that is applied to deep neural network has been applied to Logistic Regression too.We have acheived an F1 score of 91%. For further details of the algorithm please look at the https://github.com/dsp-uga/sp18/tree/master/projects/p2/lightningtalks/emma for the algorithm details.
    
 4. Performance Tuning: The biggest headache for the project was performance tuning. Some measures we took for performance tuning are: 
 a. Set the Pyspark properties to use optimal resources of the clusters: Setting the driver and executer memory, and processor cores were very much helpful. Maximum output size set at the end helped to get rid of training the large data problem.
@@ -62,7 +62,6 @@ Cross Validation: Implemented random based Cross validator
 MLP :Implemented random mlp  and randomized Logistic regression
 Hashing TF: Used hashing tf for feature extraction
 Line wise prediction: Predicted the classificaiton via line not based on files and then converted to file space (Embedding)
-
 All the code is available under mlp branch
 
 Hiten - Implementation of Naive-Bayes, Random Forest in DataFrame /Pipeline, Analysis, processing of data, Google CLoud
